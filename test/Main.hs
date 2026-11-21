@@ -28,6 +28,7 @@ import Meguri.Render (candidateLine, coverageSummary, rankCandidates, sitesMd)
 import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
 import Meguri.Search
 import Meguri.Site.Common
+import Meguri.Site.Store (taxInclAmount, validEan13)
 import Meguri.Sites
 import Meguri.Text
 import Meguri.Types
@@ -50,6 +51,7 @@ main =
       , rankTests
       , shipTests
       , capturedTests
+      , storeTests
       , fetchTests
       , microdataTests
       , sanitizeTests
@@ -96,6 +98,7 @@ goldenTests =
     "golden（fixture からの抽出）"
     [ listGolden "kakaku" "search" "https://kakaku.com/search_results/WH-1000XM5/" 200
     , listGolden "kakaku" "shop" "https://kakaku.com/item/K0001654211/shop/" 200
+    , listGolden "kakaku" "search-jan" "https://kakaku.com/search_results/4548736132566/" 200
     , listGolden "rakuten" "search" "https://search.rakuten.co.jp/search/mall/WH-1000XM5/?s=2&used=1" 200
     , itemGolden "rakuten" "item" "https://item.rakuten.co.jp/cocohouse/nb08qd1ckcd/"
     , itemGolden "rakuten" "item-2ndstreet" "https://item.rakuten.co.jp/jumblestore/2238010018076/"
@@ -118,7 +121,6 @@ goldenTests =
     , itemGolden "bookoff" "item" "https://shopping.bookoff.co.jp/used/0012651925"
     , listGolden "loft" "search" "https://www.loft.co.jp/store/goods/search.aspx?search=x&keyword=%E3%82%BF%E3%82%AA%E3%83%AB&sort=price" 200
     , itemGolden "loft" "item" "https://www.loft.co.jp/store/g/g4902011649215/"
-    , listGolden "francfranc" "search" "https://francfranc.com/search?q=%E3%82%BF%E3%82%AA%E3%83%AB" 200
     , itemGolden "francfranc" "item" "https://francfranc.com/products/1111070077126"
     , listGolden "kohnan" "search" "https://www.kohnan-eshop.com/shop/goods/search.aspx?keyword=%E8%84%9A%E7%AB%8B&search=x&seq=gp" 200
     , itemGolden "kohnan" "item" "https://www.kohnan-eshop.com/shop/g/g4989999212587/"
@@ -133,7 +135,30 @@ goldenTests =
     , itemGolden "costco" "item" "https://www.costco.co.jp/c/Kleenex-Tissue-180ct-x-10-Boxes/p/515685"
     , itemGolden "ikea" "item" "https://www.ikea.com/jp/ja/p/kuddarna-chair-cushion-outdoor-light-grey-beige-80547223/"
     , itemGolden "sofmap" "item" "https://www.sofmap.com/product_detail.aspx?sku=23301270"
+    , listGolden "hands" "search" "https://hands.net/search/?q=%E3%82%BF%E3%82%AA%E3%83%AB&rankBy=price(float)/jpy:ascending" 200
+    , listGolden "hands" "search-zero" "https://hands.net/search/?q=WH-1000XM5&rankBy=price(float)/jpy:ascending" 200
+    , itemGolden "hands" "item" "https://hands.net/goods/4517161163230/"
+    , listGolden "ishibashi" "search" "https://store.ishibashi.co.jp/search?q=%E3%82%AE%E3%82%BF%E3%83%BC&sort=price" 200
+    , listGolden "ishibashi" "search-zero" "https://store.ishibashi.co.jp/search?q=WH-1000XM5&sort=price" 200
+    , itemGolden "ishibashi" "item" "https://store.ishibashi.co.jp/view/item/000000040360"
+    , listGolden "buyma" "search" "https://www.buyma.com/r/-O3/%E8%B2%A1%E5%B8%83/" 200
+    , listGolden "buyma" "search-zero" "https://www.buyma.com/r/-O3/WH-1000XM5/" 404
+    , itemGolden "buyma" "item" "https://www.buyma.com/item/120505097/"
+    , itemGolden "lohaco" "item" "https://lohaco.yahoo.co.jp/store/h-lohaco/item/uu42216/"
+    , itemGolden "aupay" "item" "https://wowma.jp/item/745282614"
+    , listGolden "cado" "search" "https://cado.com/search?q=%E5%8A%A0%E6%B9%BF%E5%99%A8" 200
+    , itemGolden "cado" "item" "https://cado.com/products/hm-c500h"
+    , listGolden "okoku" "search" "https://www.okoku.jp/search?q=%E3%83%98%E3%83%83%E3%83%89%E3%83%9B%E3%83%B3&sort_by=price-ascending&filter.v.availability=1" 200
+    , itemGolden "okoku" "item" "https://www.okoku.jp/products/2100228144178"
+    , listGolden "akachan" "search" "https://shop.akachan.jp/shop/goods/search.aspx?search=x&keyword=%E3%83%99%E3%83%93%E3%83%BC%E3%82%AB%E3%83%BC&sort=sp" 200
+    , itemGolden "akachan" "item" "https://shop.akachan.jp/shop/g/g204781100/"
+    , itemGolden "locondo" "item" "https://www.locondo.jp/shop/commodity/SCLR0682D/IN8133DU000020/"
     , capturedGolden "yodobashi" "item" "https://www.yodobashi.com/product/100000001007090035/"
+    , capturedGolden "yamada" "item" "https://www.yamada-denkiweb.com/1593632012/"
+    , capturedGolden "ksdenki" "item" "https://www.ksdenki.com/item?sku=4548736163560"
+    , capturedGolden "nitori" "item" "https://www.nitori-net.jp/ec/product/2110100030543s/"
+    , capturedGolden "janpara" "item" "https://www.janpara.co.jp/sale/search/detail/?SRCODE=216069688"
+    , capturedGolden "ebay" "item" "https://www.ebay.com/itm/336313542593"
     , capturedGolden "amazon" "item" "https://www.amazon.co.jp/dp/B09Z2QYYD1"
     , capturedGolden "mercari" "item" "https://jp.mercari.com/item/m94254522440"
     , capturedGolden "2ndstreet" "item" "https://www.2ndstreet.jp/goods/detail/goodsId/2343445325962/shopsId/31545"
@@ -175,6 +200,12 @@ shippingTests =
     , testCase "送料：1,100円" $ parseShipping "送料：1,100円（税込）" @?= Just (Fixed (Yen 1100))
     , testCase "条件つき無料" $ parseShipping "送料550円（3,300円以上で送料無料）" @?= Just (FreeOver (Yen 3300) (Yen 550))
     , testCase "条件だけ（額が無い）は作らない" $ parseShipping "3,300円以上で送料無料" @?= Just (ShipUnknown "3,300円以上で送料無料")
+    , testCase "しきい値に（税込）が付いていても、条件つき無料として読む" $
+        parseShipping "送料550円（3,300円（税込）以上で送料無料）" @?= Just (FreeOver (Yen 3300) (Yen 550))
+    , testCase "空白で区切られた「3,780 円 (税込)以上で基本配送料 550 円 (税込) 無料」" $
+        parseShipping "最短翌日お届け 3,780 円 (税込)以上で基本配送料 550 円 (税込) 無料" @?= Just (FreeOver (Yen 3780) (Yen 550))
+    , testCase "「送料無料」の後ろのしきい値を、送料の額と取り違えない" $
+        parseShipping "4,000円（税込）以上のご購入で送料無料。4,000円（税込）以下の場合は、送料は一律550円（税込）。" @?= Just (FreeOver (Yen 4000) (Yen 550))
     , testCase "着払い" $ parseShipping "送料着払い" @?= Just BuyerPays
     , testCase "落札者負担" $ parseShipping "送料：落札者負担" @?= Just BuyerPays
     , testCase "読めない" $ parseShipping "お届け日を確認" @?= Nothing
@@ -265,10 +296,96 @@ capturedTests =
         html <- readFixture "2ndstreet/item.html"
         let r = extractItem FromCapture "https://www.2ndstreet.jp/goods/detail/goodsId/2343445325962/shopsId/31545" stamp html
         (r.offer.priceIncl.value, r.offer.condition.value, r.offer.keys.sharedStockId) @?= (Just (Yen 16390), Just "中古B", Just "2343445325962")
+    , testCase "ヤマダ：関連商品の欄の価格と「送料別」を読まない" $ do
+        html <- readFixture "yamada/item.html"
+        let r = extractItem FromCapture "https://www.yamada-denkiweb.com/1593632012/" stamp html
+        (T.isInfixOf "59,400" html, T.isInfixOf "送料別" html) @?= (True, True)
+        (r.offer.priceIncl.value, r.offer.shipping.value, r.offer.stock.value) @?= (Just (Yen 43160), Just Free, Just InStock)
+        r.confirmation @?= Confirmed
+    , testCase "ケーズデンキ：税込と税別を取り違えず、関連商品の「在庫なし」を読まない" $ do
+        html <- readFixture "ksdenki/item.html"
+        let r = extractItem FromCapture "https://www.ksdenki.com/item?sku=4548736163560" stamp html
+        T.isInfixOf "在庫なし" html @?= True
+        (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.stock.value, r.offer.keys.jan) @?= (Just (Yen 43160), Just (Yen 39237), Just InStock, Just "4548736163560")
+        r.confirmation @?= Confirmed
+    , testCase "ニトリ：受取店舗の「在庫なし」を読まない。個別送料の商品は、支払額を出さない" $ do
+        html <- readFixture "nitori/item.html"
+        let r = extractItem FromCapture "https://www.nitori-net.jp/ec/product/2110100030543s/" stamp html
+        T.isInfixOf "在庫なし" html @?= True
+        (r.offer.priceIncl.value, r.offer.stock.value, payable r.offer) @?= (Just (Yen 9500), Just InStock, Nothing)
+        r.confirmation @?= Partial ["送料"]
+    , testCase "じゃんぱら：分類の画像を商品の画像にしない。店舗を販売者にする" $ do
+        html <- readFixture "janpara/item.html"
+        let r = extractItem FromCapture "https://www.janpara.co.jp/sale/search/detail/?SRCODE=216069688" stamp html
+        (r.offer.priceIncl.value, r.offer.image.value, r.offer.seller.value, r.offer.keys.siteItemId) @?= (Just (Yen 500), Nothing, Just "じゃんぱら 大宮東口店", Just "216069688")
+    , testCase "eBay：換算の額は税抜の欄に入れ、税込価格と支払額は出さない。似た出品の欄を読まない" $ do
+        html <- readFixture "ebay/item.html"
+        let r = extractItem FromCapture "https://www.ebay.com/itm/336313542593" stamp html
+        T.isInfixOf "9,999" html @?= True
+        (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.shipping.value, payable r.offer) @?= (Nothing, Just (Yen 5223), Just (Fixed (Yen 2508)), Nothing)
+        r.confirmation @?= Partial ["税込価格"]
     , testCase "出どころは「保存したHTML」になる" $ do
         html <- readFixture "mercari/item.html"
         let r = extractItem FromCapture "https://jp.mercari.com/item/m94254522440" stamp html
         r.offer.shipping.source @?= Captured Body
+    ]
+
+-- | 一覧の fixture を、そのサイトのアダプタで読む
+listOf :: Text -> FilePath -> Text -> Int -> IO ListOut
+listOf siteId file url status = do
+  html <- readFixture (toS siteId <> "/" <> file <> ".html")
+  let def = fromMaybe (panic "カタログに無い") (lookupSite siteId)
+      ex = fromMaybe (panic "一覧のアダプタが無い") (adapterFor def).listX
+  pure (ex (ListCtx siteId "WH-1000XM5" New url status stamp) (parse html) html)
+
+-- | 店やモールのページの読み取り
+storeTests :: TestTree
+storeTests =
+  testGroup
+    "店・モールのページ"
+    [ testCase "JAN はチェックディジットで確かめる" $
+        map validEan13 ["4562204636486", "4517161163230", "4562204636487", "456220463648", "45622046364860"] @?= [True, True, False, False, False]
+    , testCase "要素に分かれた「61」「円」「（税込）」を読む。手前の文字の数字を巻き込まない" $ do
+        taxInclAmount ["ブランド No.5", "61", "円", "（税込）"] @?= Just (Yen 61)
+        taxInclAmount ["3M61", "円", "（税込）"] @?= Nothing
+        taxInclAmount ["61", "円", "（税抜）"] @?= Nothing
+    , testCase "一覧：検索結果の入れ物の外の枠（おすすめ・最近売れた商品）を読まない" $ do
+        hands <- listOf "hands" "search" "https://hands.net/search/?q=x" 200
+        dinos <- listOf "dinos" "search" "https://www.dinos.co.jp/defaultMall/sitemap/CSfSearchList_001.jsp?KEY_SEARCH=x" 200
+        (any (T.isInfixOf "4518731021929" . (.url)) hands.offers, length hands.offers) @?= (False, 3)
+        (any (T.isInfixOf "9999999999" . (.url)) dinos.offers, length dinos.offers) @?= (False, 3)
+    , testCase "一覧：該当なしのページに商品が並んでいても、0件と読む" $ do
+        hands <- listOf "hands" "search-zero" "https://hands.net/search/?q=x" 200
+        buyma <- listOf "buyma" "search-zero" "https://www.buyma.com/r/-O3/x/" 404
+        ishibashi <- listOf "ishibashi" "search-zero" "https://store.ishibashi.co.jp/search?q=x" 200
+        map (\o -> (length o.offers, o.zero)) [hands, buyma, ishibashi] @?= [(0, True), (0, True), (0, True)]
+    , testCase "Francfranc：検索結果はJSで描画されるので、一覧は読まない" $
+        (isNothing . (.listX) . adapterFor <$> lookupSite "francfranc", (.tier) <$> lookupSite "francfranc") @?= (Just True, Just HttpItem)
+    , testCase "ハンズ：値下げ品は、いまの価格の欄（normal）を読む" $ do
+        html <- readFixture "hands/item.html"
+        let r = extractItem FromHttp "https://hands.net/goods/4517161163230/" stamp html
+        T.isInfixOf "220" html @?= True
+        (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.keys.jan) @?= (Just (Yen 100), Just (Yen 91), Just "4517161163230")
+    , testCase "LOHACO：おすすめの枠の価格と、無効のボタンを読まない" $ do
+        html <- readFixture "lohaco/item.html"
+        let r = extractItem FromHttp "https://lohaco.yahoo.co.jp/store/h-lohaco/item/uu42216/" stamp html
+        T.isInfixOf "999" html @?= True
+        (r.offer.priceIncl.value, r.offer.shipping.value, r.offer.buy.value, payable r.offer)
+          @?= (Just (Yen 61), Just (FreeOver (Yen 3780) (Yen 550)), Just (BuyActive "カートに入れる"), Just (Yen 611))
+    , testCase "BUYMA：「関税負担なし」があれば表示価格を支払う額として読む。隠してある「売り切れました」は読まない" $ do
+        html <- readFixture "buyma/item.html"
+        let r = extractItem FromHttp "https://www.buyma.com/item/120505097/" stamp html
+        T.isInfixOf "売り切れました" html @?= True
+        (r.offer.priceIncl.value, r.offer.stock.value, r.offer.shipping.value) @?= (Just (Yen 500), Just InStock, Just Free)
+    , testCase "BUYMA：「関税負担なし」が無ければ、税込価格は null（額は raw に残す）" $ do
+        html <- T.replace "関税負担なし" "" <$> readFixture "buyma/item.html"
+        let r = extractItem FromHttp "https://www.buyma.com/item/120505097/" stamp html
+        (r.offer.priceIncl.value, r.offer.priceIncl.raw, payable r.offer) @?= (Nothing, Just "500", Nothing)
+        r.confirmation @?= Partial ["税込価格"]
+    , testCase "au PAY：税抜の印の商品は、税込価格を null にする" $ do
+        html <- T.replace "\"isExclusiveTax\": false" "\"isExclusiveTax\": true" . T.replace "\"isInclusiveTax\": true" "\"isInclusiveTax\": false" <$> readFixture "aupay/item.html"
+        let r = extractItem FromHttp "https://wowma.jp/item/745282614" stamp html
+        (r.offer.priceIncl.value, r.offer.priceExcl.value) @?= (Nothing, Just (Yen 560))
     ]
 
 -- | 送料の問い合わせ（配送先は、キャッシュにも実行のページにも残さない）

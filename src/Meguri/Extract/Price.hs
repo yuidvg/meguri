@@ -38,32 +38,40 @@ parsePrice :: Text -> Maybe (Yen, Maybe TaxMark)
 parsePrice t = (,taxMark t) <$> parseYen t
 
 -- | 送料の表示を読む。読めなければ 'Nothing'。
+--
+-- 空白と「(税込)」を除いてから照らす（「3,780 円 (税込)以上で基本配送料 550 円 (税込) 無料」）。
 parseShipping :: Text -> Maybe Shipping
 parseShipping t0
-  | T.null t = Nothing
+  | T.null c = Nothing
   | has ["円以上"] && has ["送料無料", "無料"] =
       -- 「送料550円（3,300円以上で送料無料）」
-      let (before, after) = T.breakOn "円以上" t
+      let (before, after) = T.breakOn "円以上" c
           threshold = lastYen before
-          fee = feeIn (T.replace (lastNumberText before <> "円以上") "" t) <|> feeIn after
+          fee = feeIn (T.replace (lastNumberText before <> "円以上") "" c) <|> feeIn after
        in case (threshold, fee) of
             (Just th, Just f) -> Just (FreeOver th f)
             _ -> Just (ShipUnknown (T.take 60 t))
-  | has ["送料無料", "送料込", "送料:無料", "送料 無料", "送料出品者負担", "出品者負担", "無料配送", "配送料無料"] = Just Free
+  | has ["送料無料", "送料込", "送料:無料", "送料出品者負担", "出品者負担", "無料配送", "配送料無料"] = Just Free
   | has ["着払", "落札者負担", "購入者負担"] = Just BuyerPays
-  | has ["送料別", "配送先", "都道府県", "地域別", "地域により"] && isNothing (feeIn t) = Just ByDestination
-  | Just f <- feeIn t = Just (if f == 0 then Free else Fixed f)
+  | has ["送料別", "配送先", "都道府県", "地域別", "地域により"] && isNothing (feeIn c) = Just ByDestination
+  | Just f <- feeIn c = Just (if f == 0 then Free else Fixed f)
   | otherwise = Nothing
  where
   t = T.strip (toHalfWidth t0)
-  has = any (`T.isInfixOf` t)
-  -- 「送料」「配送料」の後ろの金額
-  feeIn s = case filter (not . T.null . snd) [T.breakOn k s | k <- ["送料", "配送料", "配達料"]] of
-    ((_, hit) : _) ->
-      let rest = T.take 16 (T.drop 2 hit)
-       in if "円" `T.isInfixOf` rest || "¥" `T.isInfixOf` rest then parseYen rest else Nothing
-    [] -> Nothing
-  lastNumberText s = T.takeWhileEnd (\c -> isDigit c || c == ',') s
+  c = T.replace "(税込み)" "" (T.replace "(税込)" "" (T.filter (not . isSpace) t))
+  has = any (`T.isInfixOf` c)
+  -- 「送料」「配送料」「配達料」の後ろの金額。「送料無料」「送料込」の後ろの数（しきい値など）は読まない
+  feeIn s =
+    head
+      [ y
+      | k <- ["送料", "配達料"]
+      , (_, hit) <- T.breakOnAll k s
+      , let rest = T.take 16 (T.drop (T.length k) hit)
+      , not (any (`T.isPrefixOf` rest) ["無料", "込", "当社負担", "別"])
+      , "円" `T.isInfixOf` rest || "¥" `T.isInfixOf` rest
+      , Just y <- [parseYen rest]
+      ]
+  lastNumberText s = T.takeWhileEnd (\c' -> isDigit c' || c' == ',') s
   lastYen s = parseYen (lastNumberText s)
 
 -- | schema.org の availability

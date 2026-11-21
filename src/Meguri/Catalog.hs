@@ -213,6 +213,7 @@ entries =
           , "/item/{K}/shop/ のショップ一覧で、各店の価格・送料・在庫・ポイントを拾える。「売り場へ行く」ボタンの onclick にある k3c.atrack.ping({shpname, shpbid, shpshp, shppnt}) が確実。同じ店がタブ違いで重複して出るので除く。"
           , "大きい画像は img1.kakaku.k-img.com/images/productimage/fullscale/{K}.jpg（kakaku.com/images/… は404）。"
           , "ここで見た値は、その店のページを見たことにならない（未確認として扱う）。"
+          , "2026-11-21：JAN で探すと、製品ページではなく、モールの出品の一覧（ショッピング検索）が出る。meguri は製品ページだけを読むので、0件になる。型番か商品名で探す。"
           ]
       }
   , (site "google-shopping" "Googleショッピング" PriceComparison [KNew] BrowserNormal)
@@ -274,6 +275,7 @@ entries =
           [ "検索結果はJSで描画されるので、ブラウザで開く（?q= はトップに戻される）。"
           , "個別ページは HTTP でも、価格・在庫・送料条件が読める。"
           , "2026-11-21：検索は、ヘッドレスの agent-browser で開いて商品リンクを拾えた。"
+          , "2026-11-21：抽出では、h1 から「こちらの商品もおすすめ」の見出しまでの本文を読む（クラス名はビルドごとに変わる）。価格は「61」「円」「（税込）」と要素が分かれて並ぶ。販売者は「この商品は◯◯が販売・発送します」、送料は「3,780円(税込)以上で基本配送料550円(税込)無料」の形。"
           ]
       }
   , (site "aupay" "au PAYマーケット" Mall [KNew, KUsed] HttpItem)
@@ -284,6 +286,7 @@ entries =
           , "個別 /item/{番号} は HTTP でも、__NEXT_DATA__ に価格・店名・在庫数・画像がある。"
           , "中古は、商品名の「(中古品)」で見分ける。"
           , "2026-11-21：検索は、ヘッドレスの agent-browser で開いて商品リンクを拾えた。"
+          , "2026-11-21：抽出では、__NEXT_DATA__ の initialState.itemDetails.itemPageInfo（currentPrice・taxTypes・remainingItemCount・shopSummaryInfo.shopName）を読む。送料とカートのボタンはJSで描画されるので、HTTP では読めない。"
           ]
       }
   , (site "qoo10" "Qoo10" Mall [KNew] BrowserJs)
@@ -319,6 +322,7 @@ entries =
           [ "ページも検索語も Shift_JIS。"
           , "個別ページは、JSON-LD の offers.priceSpecification.price が税込価格。在庫も priceSpecification の中にある。送料は本文の「基本配送料」。"
           , "本文の「在庫なし」は隠してあるひな形（display:none）で、在庫ありの商品にも入っている。読まない。"
+          , "2026-11-21：検索結果は #listPreview の中だけ。その後ろに、検索と関係のない商品の枠が並ぶ。型番で探すと、関係の薄い商品が数件返る（サイトの検索の癖）。"
           ]
       }
   , (site "japanet" "ジャパネットたかた" DirectAndSpecialty [KNew] Http)
@@ -358,7 +362,10 @@ entries =
   , (site "cado" "cado公式" DirectAndSpecialty [KNew] Http)
       { searchNew = Just "https://cado.com/search?q={q}"
       , itemPatterns = ["^https://cado\\.com/products/"]
-      , hints = ["在庫は、本文の「売り切れ」の文字ではなく JSON-LD の offers.availability で判断する（在庫ありの商品にも、その文字が埋め込まれている）。"]
+      , hints =
+          [ "在庫は、本文の「売り切れ」の文字ではなく JSON-LD の offers.availability で判断する（在庫ありの商品にも、その文字が埋め込まれている）。"
+          , "2026-11-21：送料は本文の「4,000円（税込）以上のご購入で送料無料。…送料は一律550円（税込）」。検索結果の値札にも「売り切れ」のひな形が入っているので、一覧では在庫を読まない。"
+          ]
       }
   , (site "irisplaza" "アイリスプラザ" DirectAndSpecialty [KNew] (TierStopped "不正アクセスの件によりECサイトが一時停止（503）"))
       { hints = ["Yahoo!ショッピングの公式店（store.shopping.yahoo.co.jp/irisplaza/）で探せるが、値はその店のもの。"]
@@ -429,12 +436,18 @@ entries =
       , hints =
           [ "ヘッドレスは HTTP/2 エラーになる。通常のブラウザでも、/search/{語}/ を直接開くと「アクセスが制限されました」になったが、検索窓から入ると検索できた。"
           , "個別 /{番号}/ で、価格・お届け日・カートが読める。送料の額は「配送料金について」のページにある。"
+          , "抽出では、主の商品の欄（l-list-product-info-main）だけを読む。主の商品の価格の欄に「税込」の文字は無く、関連商品の欄には「¥…(税込)」と出る。サイトの価格は税込として読む（2026-11-21 に確かめた）。在庫は配送先のエリアごとの表示で、お届けの目安が出ていれば在庫あり。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）で個別ページを開けて、HTMLを保存できた（検索は試していない）。配送先のエリアの地名が入るので、保存したHTMLを人に渡さない。"
           ]
       }
   , (site "ksdenki" "ケーズデンキ" Electronics [KNew] BrowserNormal)
       { searchNew = Just "https://www.ksdenki.com/search?keyword={q}&sort=4"
       , itemPatterns = ["^https://www\\.ksdenki\\.com/item\\?sku="]
-      , hints = ["個別 /item?sku={JAN} の JSON-LD に、価格・在庫がある。送料は本文に出る。"]
+      , hints =
+          [ "個別 /item?sku={JAN} の JSON-LD に、価格・在庫がある。送料は本文に出る。"
+          , "抽出では、itemPriceIncld（税込）と itemPriceBase（税別）、pdStock（在庫）、icoPostage（送料の札）、cmnBtnAddCart（カート）を読む。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）で個別ページを開けて、HTMLを保存できた。"
+          ]
       }
   , (site "nojima" "ノジマオンライン" Electronics [KNew] BrowserNormal)
       { searchNew = Just "https://online.nojima.co.jp/app/catalog/list/init?searchWord={q}"
@@ -442,6 +455,7 @@ entries =
       , hints =
           [ "ヘッドレスは Akamai の403だが、通常のブラウザで数秒待つと開く。"
           , "個別 /commodity/1/{JAN}/ で、税込価格・ポイント・送料・カートが読める。画像は JSON-LD にある。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）では、個別ページが Access Denied で開けなかった。"
           ]
       }
   , (site "edion" "エディオン" Electronics [KNew] (TierStopped "全機能がメンテナンス中（再開予定 11/21 10:00）"))
@@ -477,6 +491,9 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスは HTTP/2 エラーだが、通常のブラウザなら開く。"
           , "個別 /ec/product/{番号}/ で、価格・送料・カート・画像が読める。"
+          , "抽出では、価格は cart-price の欄、送料は仕様の表の「送料」の行、カートは #p-addItem、名前・在庫・画像は JSON-LD（色ごとの Product）を読む。価格の欄に「税込」の文字は無い（比べてある以前の価格には「(税込)」と出る）。サイトの価格は税込として読む（2026-11-21 に確かめた）。"
+          , "「個別送料」の商品は、合計が11,000円未満だと基本送料も加わる（基本送料の額はページに無い）。確かめたのは個別送料の商品だけ。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）で検索と個別ページを開けて、HTMLを保存できた。お届け先の地名・受取店舗・レビューの投稿者名が入るので、保存したHTMLを人に渡さない。"
           ]
       }
   , (site "ikea" "IKEA" Interior [KNew] HttpItem)
@@ -500,12 +517,17 @@ entries =
       , hints =
           [ "JSON-LD は WebSite だけで、Product は無い。本文の価格・在庫を読む。価格が2つ出る商品は、どちらが今の価格かを確かめる。"
           , "サーバーが TLS の Extended Main Secret に対応していない。meguri は「あれば使う」設定でつなぐ。"
+          , "2026-11-21：抽出では、#item-info の欄を読む。値下げ品は価格が2つ出て、いまの価格は normal の欄（検索結果に出る額と同じ）。商品番号は JAN。送料は「ネットストアなら合計5,000円(税込)以上で送料無料」（未満の額はページに無い）。"
+          , "検索結果は #search-result-list の中だけ。その後ろに「今、コレ売れました」の枠（検索と関係のない商品）が並ぶ。0件のときは「検索条件と一致する商品が見つかりませんでした」。"
           ]
       }
-  , (site "francfranc" "Francfranc" Interior [KNew] Http)
+  , (site "francfranc" "Francfranc" Interior [KNew] HttpItem)
       { searchNew = Just "https://francfranc.com/search?q={q}"
       , itemPatterns = ["^https://francfranc\\.com/products/"]
-      , hints = ["Shopify。個別ページの JSON-LD に、価格・在庫・画像がある（width=2000 で大きい）。安い順の指定は効かなかった。"]
+      , hints =
+          [ "Shopify。個別ページの JSON-LD に、価格・在庫・画像がある（width=2000 で大きい）。安い順の指定は効かなかった。"
+          , "2026-11-21：検索結果はJSで描画される。HTTP で取ったHTMLに並ぶ商品は Pickup・Ranking などの枠で、検索結果ではない（件数だけ、title の「検索結果◯件」で分かる）。"
+          ]
       }
   , (site "actus" "ACTUS" Interior [KNew] HttpItem)
       { searchNew = Just "https://online.actus-interior.com/search/?q={q}&sortKey=price_asc"
@@ -695,6 +717,7 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスは Akamai に拒否されるが、通常のブラウザなら開く。検索語は Shift_JIS（UTF-8 だと文字化けする）。"
           , "個別 /shop/g/g{番号}/ で、状態ランク・税込価格・送料の条件・保証・カートが読める。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）では「ただいまサイトが大変込み合っております」の案内が出て、検索を開けなかった。"
           ]
       }
   , (site "komehyo" "KOMEHYO" Reuse [KUsed] BrowserNormal)
@@ -703,12 +726,16 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスはエラーページに飛ばされるが、通常のブラウザなら開く。"
           , "個別 /product/{番号}/ で、税込価格・商品ランク・在庫店舗・付属品・カートが読める。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）では、検索は開けたが、個別ページは「セッションが無効となっています」のエラーページになった。"
           ]
       }
   , (site "okoku" "買取王国" Reuse [KUsed] Http)
       { searchUsed = Just "https://www.okoku.jp/search?q={q}&sort_by=price-ascending&filter.v.availability=1"
       , itemPatterns = ["^https://(www\\.)?okoku\\.jp/products/"]
-      , hints = ["Shopify。個別ページの JSON-LD に、価格・在庫がある。"]
+      , hints =
+          [ "Shopify。個別ページの JSON-LD に、価格・在庫がある。"
+          , "2026-11-21：ランクは本文（c_main-product__rank-line）。送料は商品ページに無い。"
+          ]
       }
   , (site "wonderrex" "ワンダーレックス" Reuse [KUsed] Http)
       { searchUsed = Just "https://wonderrex-online.com/search?q={q}&sort_by=price-ascending"
@@ -725,6 +752,9 @@ entries =
       , hints =
           [ "HTTP は403、ヘッドレスはエラーだが、通常のブラウザなら開く。"
           , "個別 /itm/{番号} で、円に換算した価格・送料の欄・カートが読める。画像は s-l400 を s-l1600 にすると大きい。関税や通関の注意書きも読む。"
+          , "抽出では、価格（x-price-primary と、円の換算の x-price-approx）、送料の欄、数量、出品者、「今すぐ買う」のボタンを読む。円の額は目安の換算で、関税・輸入消費税・手数料は別なので、税込価格と支払額は出さない（換算の額は税抜の欄に入れる）。"
+          , "検索結果には /itm/123456 のような飾りのリンクが混ざる。商品のリンクは www.ebay.com/itm/{12桁前後}。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）で検索と個別ページを開けて、HTMLを保存できた。"
           ]
       }
   , (site "amazon-com" "Amazon.com" OverseasRental [KNew] BrowserJs)
@@ -742,6 +772,9 @@ entries =
       , hints =
           [ "個別ページの JSON-LD（hasVariant[].offers）に、価格・在庫・色別がある。"
           , "送料は、JSON-LD が0円でも本文が「送料着払」のことがあるので、本文を見る。"
+          , "2026-11-21：価格に「税込」の文字は無い。「関税負担なし」の印が付いた商品は追加料金の負担がない（/contents/duty/ の案内。国内発送・関税元払い・発生時に返金）ので、印があるときだけ表示価格を支払う額として読む。印が無い海外発送の商品は、関税・輸入消費税が別にかかることがある。"
+          , "「この商品は、売り切れました」は隠してあるひな形で、在庫ありの商品にも入っている。出品者（パーソナルショッパー）は js-itemdetail-shopper-name。"
+          , "検索で該当が無いと、HTTP 404 で「お探しの条件にあてはまる商品は見つかりませんでした」と出て、その下に検索と関係のない商品が並ぶ。"
           ]
       }
   , (site "rentio" "Rentio" OverseasRental [KRental] Http)
@@ -770,6 +803,7 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスは Akamai の403だが、通常のブラウザなら開く。"
           , "個別 /item/{番号} で、税込価格・付属品・カートが読める。価格は JSON-LD にもある。画像は …/1/l.jpg。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）では、検索は開けたが、個別ページは Access Denied だった。"
           ]
       }
   , (site "kitamura" "カメラのキタムラ" ItemSpecific [KNew, KUsed] BrowserJs)
@@ -786,6 +820,8 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスは WAF に拒否されるが、通常のブラウザなら開く。"
           , "詳細 /sale/search/detail/?ITMCODE={番号} に、在庫のある店舗ごとの価格と状態が並ぶ。og:image は分類の画像なので、商品の画像は本文から取る。"
+          , "抽出では、itemdetail_table の行（店舗・状態・価格）を読む。行が複数あれば、いちばん安い行。表の見出しが「価格（税込）」。送料は画像（送料メーター）で出るので読めない。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）で検索と個別ページ（?SRCODE={商品番号}）を開けて、HTMLを保存できた。"
           ]
       }
   , (site "iosys" "イオシス" ItemSpecific [KNew, KUsed] Http)
@@ -795,9 +831,13 @@ entries =
       }
   , (site "ishibashi" "イシバシ楽器" ItemSpecific [KNew, KUsed] Http)
       { searchNew = Just "https://store.ishibashi.co.jp/search?q={q}&sort=price"
-      , searchUsed = Just "https://store.ishibashi.co.jp/search?q={q}&sort=price&s4[0]=%E4%B8%AD%E5%8F%A4"
+      , searchUsed = Just "https://store.ishibashi.co.jp/search?q={q}&sort=price&s4%5B0%5D=%E4%B8%AD%E5%8F%A4"
       , itemPatterns = ["^https://store\\.ishibashi\\.co\\.jp/(view/item|ec/product)/"]
-      , hints = ["JSON-LD に価格・在庫がある。中古はランクと付属品が読める。売れた後も掲載が残ることがある。"]
+      , hints =
+          [ "JSON-LD に価格・在庫がある。中古はランクと付属品が読める。売れた後も掲載が残ることがある。"
+          , "2026-11-21：MakeShop。本文に「¥ 110 税込」「配送料: ¥ 990」があり、店舗とランクは im-product-rank の data-name（「横浜店 S：新品」）。商品コードは「09-{JAN}」の形のことがある。"
+          , "0件のときは、件数の欄（result-info-hitnum）が 0 になる。中古の絞り込みの s4[0] は、% エンコードして渡す。"
+          ]
       }
   , (site "digimart" "デジマート" ItemSpecific [KNew, KUsed] BrowserNormal)
       { searchNew = Just "https://www.digimart.net/search?keywordAnd={q}"
@@ -818,7 +858,10 @@ entries =
   , (site "akachan" "赤ちゃん本舗" ItemSpecific [KNew] Http)
       { searchNew = Just "https://shop.akachan.jp/shop/goods/search.aspx?search=x&keyword={q}&sort=sp"
       , itemPatterns = ["^https://shop\\.akachan\\.jp/shop/g/"]
-      , hints = ["www.akachan.jp は価格のないカタログ。通販の個別ページは、JSON-LD に価格・在庫がある。"]
+      , hints =
+          [ "www.akachan.jp は価格のないカタログ。通販の個別ページは、JSON-LD に価格・在庫がある。"
+          , "2026-11-21：送料は本文の「一般商品 600円（税込）…5,500円（税込）以上で送料当社負担」。JAN は本文の「JANコード：」にあり、JSON-LD の mpn は店の商品番号。店舗ごとの在庫の一覧はネットの在庫ではない。"
+          ]
       }
   , (site "zozotown" "ZOZOTOWN" ItemSpecific [KNew, KUsed] BrowserNormal)
       { enc = ShiftJis
@@ -827,12 +870,16 @@ entries =
       , hints =
           [ "HTTP・ヘッドレスは応答しないが、通常のブラウザなら開く。検索語は Shift_JIS（UTF-8 だと文字化けして0件になる）。"
           , "個別 /shop/{店}/goods/{番号}/ で、サイズ別の在庫・税込価格・カートが読める。JSON-LD の在庫は、サイズ別の表示と食い違うことがある。"
+          , "2026-11-21：画面ありの agent-browser（ログインなし）では、検索が Access Denied だった。"
           ]
       }
   , (site "locondo" "ロコンド" ItemSpecific [KNew] HttpItem)
       { searchNew = Just "https://www.locondo.jp/shop/search?keyword={q}&alignmentSequence=price%20asc"
       , itemPatterns = ["^https://www\\.locondo\\.jp/shop/commodity/"]
-      , hints = ["検索結果はJSで描画される。個別ページは HTTP でも、JSON-LD の価格とサイズ別の在庫が読める。"]
+      , hints =
+          [ "検索結果はJSで描画される。個別ページは HTTP でも、JSON-LD の価格とサイズ別の在庫が読める。"
+          , "2026-11-21：店は本文の「ショップ：」の欄。送料は商品ページに無い。"
+          ]
       }
   , (site "rakuten-books" "楽天ブックス" ItemSpecific [KNew] BrowserJs)
       { searchNew = Just "https://books.rakuten.co.jp/search?sitem={q}&s=4"

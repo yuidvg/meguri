@@ -21,9 +21,12 @@ listPage ctx ts html
   | "/item/J" `T.isInfixOf` ctx.pageUrl = ListOut [] False (map shopUrl (take 3 (variantIds html)))
   | otherwise =
       let os = mapMaybe (searchItem ctx) (subtrees (hasClass "p-resultItem") ts)
+          -- JAN などで探すと、製品ページではなく、モールの出品の一覧（ショッピング検索。リンクは /ksearch/jump/）が出る。
+          -- 読むのは製品ページだけなので、0件とする（モールの出品は、楽天や Yahoo! の検索で直接読める）
+          mallOnly = "https://kakaku.com/ksearch/jump/" `T.isInfixOf` html
        in ListOut
             { offers = os
-            , zero = textHas ["に一致する商品は見つかりませんでした", "該当する製品はありません", "見つかりませんでした"] html && null os
+            , zero = null os && (mallOnly || textHas ["に一致する商品は見つかりませんでした", "該当する製品はありません", "見つかりませんでした"] html)
             , -- 先頭の製品（シリーズならその色違い）のショップ一覧を続けて取る
               follow = [if "/item/K" `T.isInfixOf` o.url then o.url <> "shop/" else o.url | o <- take 1 os]
             }

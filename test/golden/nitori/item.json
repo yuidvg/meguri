@@ -1,0 +1,118 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "contents": [
+            "送料"
+        ],
+        "tag": "Partial"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": "注意事項のある商品は、同意するまで押せない",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": "https://schema.org/NewCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "新品"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "https://www.nitori-net.jp/ecstatic/image/product/2110100030543/211010003054301.jpg?ts=20260710102129353"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "2110100030543s"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "【ハイタイプ】ダイニングチェア 2脚セット 座面高46cm (SH103ｰ2H GY/BK)"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "価格の欄に「税込」の文字は無い。ニトリネットの価格は税込（2026-11-21 に確かめたサイトの決まり）",
+            "raw": "9500円",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": 9500
+        },
+        "seller": {
+            "note": "直販（販売者は店そのもの）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": "ニトリ"
+        },
+        "shipping": {
+            "note": null,
+            "raw": "個別送料：1点につき1,100円 ※商品種別「A商品・B商品」でのお届け合計が11,000円以上で基本送料無料の対象商品",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "contents": "個別送料 1100円（1点ごと）に、基本送料が加わる。合計11,000円以上なら基本送料は無料",
+                "tag": "ShipUnknown"
+            }
+        },
+        "site": "nitori",
+        "stock": {
+            "note": "ネットの在庫（JSON-LD）。受取店舗の在庫は別",
+            "raw": "https://schema.org/InStock",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://www.nitori-net.jp/ec/product/2110100030543s/"
+    }
+}

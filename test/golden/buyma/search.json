@@ -1,0 +1,285 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn-images.buyma.com/imgdata/item/250722/0120505097/710976639/210.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": null
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "すぐ届く【IKEA】KNOLIG クノーリグ キーリング S 小型バッグ"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "一覧は税込の表示",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "海外発送の商品は、関税・輸入消費税が別にかかることがある（個別ページの「関税負担なし」で確かめる）",
+                "raw": "¥500",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 500
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "出品者A"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "送料込",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "buyma",
+            "stock": {
+                "note": "一覧に在庫の表示なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://www.buyma.com/item/120505097/"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn-images.buyma.com/imgdata/item/260603/0132896949/794801480/210.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": null
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "即発☆使い勝手GOOD! [IKEA] クノーリグ キーリング 3色"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "一覧は税込の表示",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "海外発送の商品は、関税・輸入消費税が別にかかることがある（個別ページの「関税負担なし」で確かめる）",
+                "raw": "¥500",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 500
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "出品者A"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "送料込",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "buyma",
+            "stock": {
+                "note": "一覧に在庫の表示なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://www.buyma.com/item/132896949/"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn-images.buyma.com/imgdata/item/241207/0113442832/664002421/210.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": null
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "旅行に◎【IKEA】シューズ バッグ 収納 折りたたみ可"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "一覧は税込の表示",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "海外発送の商品は、関税・輸入消費税が別にかかることがある（個別ページの「関税負担なし」で確かめる）",
+                "raw": "¥500",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 500
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "出品者A"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "送料込",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "buyma",
+            "stock": {
+                "note": "一覧に在庫の表示なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://www.buyma.com/item/113442832/"
+        }
+    ],
+    "zero": false
+}

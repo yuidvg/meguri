@@ -1,0 +1,114 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": "https://schema.org/NewCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "新品"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "https://www.ksdenki.com/ito/img_public/prod/454873/454873616/4548736163560/IMG_PATH_M/pc/4548736163560_01_01.jpg"
+        },
+        "keys": {
+            "jan": "4548736163560",
+            "model": "WH-1000XM5 PM",
+            "sharedStockId": null,
+            "siteItemId": "4548736163560"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "Captured"
+            },
+            "value": "SONY（ソニー） ワイヤレスノイズキャンセリングステレオヘッドセット WH-1000XM5 PM"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": 39237
+        },
+        "priceIncl": {
+            "note": null,
+            "raw": "43160円(税込)",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": 43160
+        },
+        "seller": {
+            "note": "直販（販売者は店そのもの）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": "ケーズデンキ"
+        },
+        "shipping": {
+            "note": null,
+            "raw": "送料無料",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "tag": "Free"
+            }
+        },
+        "site": "ksdenki",
+        "stock": {
+            "note": null,
+            "raw": "在庫 在庫あり",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://www.ksdenki.com/item?sku=4548736163560"
+    }
+}

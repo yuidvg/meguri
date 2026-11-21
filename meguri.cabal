@@ -69,6 +69,7 @@ library
     Meguri.Site.HardOff
     Meguri.Site.Jmty
     Meguri.Site.Kakaku
+    Meguri.Site.Malls
     Meguri.Site.PayPayFleamarket
     Meguri.Site.Rakuma
     Meguri.Site.Rakuten

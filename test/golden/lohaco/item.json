@@ -1,0 +1,118 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "OpenGraph",
+                "tag": "ItemPage"
+            },
+            "value": "https://item-shopping.c.yimg.jp/i/n/h-lohaco_uu42216_i_20250530180057"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "uu42216"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "【アウトレット】やなぎプロダクツ Y's eco 紙カトラリーお試しパック 1袋（6本：3種類×各2本）"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": null,
+            "raw": "61円（税込）",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": 61
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "LOHACO"
+        },
+        "shipping": {
+            "note": "一部の商品は、基本配送料がかからない",
+            "raw": "最短翌日お届け3,780円(税込)以上で基本配送料550円(税込)無料",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": [
+                    3780,
+                    550
+                ],
+                "tag": "FreeOver"
+            }
+        },
+        "site": "lohaco",
+        "stock": {
+            "note": null,
+            "raw": "在庫あり",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://lohaco.yahoo.co.jp/store/h-lohaco/item/uu42216/"
+    }
+}

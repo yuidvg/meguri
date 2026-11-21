@@ -78,7 +78,7 @@ toProduct :: Value -> LdProduct
 toProduct v =
   LdProduct
     { name = str =<< at "name" v
-    , images = maybe [] imageUrls (at "image" v)
+    , images = if null ownImages then variantImages else ownImages
     , sku = text' =<< at "sku" v
     , gtin = nonBlank =<< (text' =<< (at "gtin13" v <|> at "gtin" v <|> at "gtin12" v <|> at "gtin8" v))
     , mpn = text' =<< at "mpn" v
@@ -87,7 +87,11 @@ toProduct v =
     }
  where
   own = maybe [] toOffers (at "offers" v)
-  variants = concat [maybe [] toOffers (at "offers" x) | x <- maybe [] arr (at "hasVariant" v)]
+  variantValues = maybe [] arr (at "hasVariant" v)
+  variants = concat [maybe [] toOffers (at "offers" x) | x <- variantValues]
+  ownImages = maybe [] imageUrls (at "image" v)
+  -- ProductGroup は、画像を色やサイズごとの Product の方に持つ
+  variantImages = concat [maybe [] imageUrls (at "image" x) | x <- variantValues]
   nonBlank t = if T.null (T.strip t) then Nothing else Just t
 
 imageUrls :: Value -> [Text]

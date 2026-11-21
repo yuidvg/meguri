@@ -1,0 +1,116 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "contents": [
+            "送料",
+            "画像"
+        ],
+        "tag": "Partial"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": "中古・一部付・１週間 ／ 状態：外装スレや光沢、傷み 付属品：箱のみ"
+        },
+        "image": {
+            "note": "商品の写真が無い（分類の画像だけ）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "216069688"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": "Apple MagSafe対応iPhone 13 mini シリコンケース ミッドナイト"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": null,
+            "raw": "価格（税込）",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": 500
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": "じゃんぱら 大宮東口店"
+        },
+        "shipping": {
+            "note": "送料は画像（送料メーター）で出る。ご利用案内で確かめる",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": null
+        },
+        "site": "janpara",
+        "stock": {
+            "note": null,
+            "raw": "在庫の行あり",
+            "source": {
+                "contents": "Body",
+                "tag": "Captured"
+            },
+            "value": {
+                "tag": "Selling"
+            }
+        },
+        "url": "https://www.janpara.co.jp/sale/search/detail/?SRCODE=216069688"
+    }
+}

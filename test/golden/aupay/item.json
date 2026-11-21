@@ -1,0 +1,113 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "contents": [
+            "送料",
+            "購入の入口"
+        ],
+        "tag": "Partial"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": "カートのボタンはJSで描画される（ブラウザで確かめる）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "condition": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "https://ic4-a.wowma.net/mis/gr/135/image.wowma.jp/66626109/ishin-r/cabinet/7P-PLUG/7p-plug-01.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "745282614"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "【7PIN 端子のみ】マグネット充電ケーブル 急速充電 データ転送 iPhone Lightning MicroUSB Type-C 防塵キャップ"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "税抜の表示なし",
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "税込の印（taxTypes.isInclusiveTax）あり",
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": 560
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "DAIAD【ダイアド】公式 | au PAY マーケット店"
+        },
+        "shipping": {
+            "note": "送料はJSで描画される（ブラウザで確かめる）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "site": "aupay",
+        "stock": {
+            "note": null,
+            "raw": "在庫数 1759",
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://wowma.jp/item/745282614"
+    }
+}
