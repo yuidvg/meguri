@@ -1,17 +1,17 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
--- | rank：重複を除き、枠に分けて並べる（純粋）。
+-- | 並べる：重複を除き、枠に分けて並べる（純粋）。
 --
--- 確認済みかどうかは、個別ページの記録（'ItemRecord'）が持つ判定をそのまま使う。
--- 一覧の候補（'Candidate'）は、ここでも未確認のまま。
-module Meguri.Rank
+-- 確認済みかどうかは、個別ページの記録（'Reading'）が持つ判定をそのまま使う。
+-- 一覧の候補（'Sighting'）は、ここでも未確認のまま。
+module Meguri.Arrange
   ( Frame (..)
   , frameLabel
-  , Entry (..)
-  , fromItem
-  , fromCandidate
-  , rank
-  , latestItems
+  , Finding (..)
+  , fromReading
+  , fromSighting
+  , arrange
+  , latestReadings
   , lowerBound
   , classify
   ) where
@@ -20,7 +20,7 @@ import Data.List (nubBy)
 import Data.Map.Strict qualified as Map
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text qualified as T
-import Meguri.Catalog (SiteDef (..), SiteKind (..), lookupSite)
+import Meguri.Catalog (Channel (..), SiteKind (..), lookupSite)
 import Meguri.Text (toHalfWidth)
 import Meguri.Types
 import Protolude
@@ -49,7 +49,7 @@ frameLabel = \case
   Gone -> "いまは買えない（売り切れ・終了）"
 
 -- | 並べるための1件。個別ページの記録からも、一覧の候補からも作る。
-data Entry = Entry
+data Finding = Finding
   { frame :: Frame
   , confirmation :: Confirmation
   , site :: Text
@@ -64,26 +64,53 @@ data Entry = Entry
   , image :: Maybe Text
   , points :: Maybe Int
   , condition :: Maybe Text
+  , -- | 購入の入口（カートや購入のボタン）。押さない
+    buy :: Maybe BuyEntry
   , keys :: Keys
-  , at :: Text
+  , -- | 値を読んだ時刻（JST）。個別ページなら、そのページを確かめた時刻
+    at :: Text
   , -- | 個別ページの記録から作ったか（一覧の候補なら False）
     fromPage :: Bool
   , -- | 同じ在庫が出ていた別の窓口（URL）
     duplicates :: [Text]
+  , -- | 読めなかった項目の理由、値についての但し書き、一覧の値からの変化
+    notes :: [Text]
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-fromItem :: ItemRecord -> Entry
-fromItem r = entry r.confirmation True False r.offer
+fromReading :: Reading -> Finding
+fromReading r = (entry r.confirmation True False r.offer) {notes = fieldNotes r.offer}
+
+-- | 読めなかった項目の理由と、値についての但し書き（「サイトの決まりとして税込と読んだ」など）
+fieldNotes :: Offer s -> [Text]
+fieldNotes o =
+  catMaybes
+    [ note "名前" o.name
+    , note "税込価格" o.priceIncl
+    , case o.shipping.value of
+        Just (ShipUnknown why) -> Just ("送料：" <> why)
+        _ -> note "送料" o.shipping
+    , note "在庫" o.stock
+    , note "販売者" o.seller
+    , note "画像" o.image
+    , note "購入の入口" o.buy
+    ]
+ where
+  note :: Text -> Field s a -> Maybe Text
+  note l f = case f.note of
+    Just n | n `notElem` boring -> Just (l <> "：" <> n)
+    _ -> Nothing
+  -- どこから読んだかだけの注記は、出力に出さない（readings.jsonl には残る）
+  boring = ["読めなかった", "本文の税込の表示と同じ額", "本文の大きい表示（税込）", "直販（販売者は店そのもの）"]
 
 -- | 一覧の候補は、いつも未確認
-fromCandidate :: Candidate -> Entry
-fromCandidate c = entry Unconfirmed False (c.kind == Used) c.offer
+fromSighting :: Sighting -> Finding
+fromSighting c = entry Unconfirmed False (c.market == Used) c.offer
 
-entry :: Confirmation -> Bool -> Bool -> Offer s -> Entry
+entry :: Confirmation -> Bool -> Bool -> Offer s -> Finding
 entry confirmation fromPage usedSearch o =
-  Entry
+  Finding
     { frame = classify usedSearch o
     , confirmation
     , site = o.site
@@ -98,10 +125,12 @@ entry confirmation fromPage usedSearch o =
     , image = o.image.value
     , points = o.points.value
     , condition = o.condition.value
+    , buy = o.buy.value
     , keys = o.keys
     , at = o.at
     , fromPage
     , duplicates = []
+    , notes = []
     }
 
 -- | 枠を決める（決まった規則）。
@@ -134,11 +163,11 @@ classify usedSearch o
     Nothing -> False
 
 -- | 同じページを読み直した記録は、新しい方を残す（入力は古い順）
-latestItems :: [ItemRecord] -> [ItemRecord]
-latestItems = Map.elems . Map.fromList . map (\r -> (r.offer.url, r))
+latestReadings :: [Reading] -> [Reading]
+latestReadings = Map.elems . Map.fromList . map (\r -> (r.offer.url, r))
 
 -- | 少なくとも払う額：支払額が分かればそれ、分からなければ価格
-lowerBound :: Entry -> Maybe Yen
+lowerBound :: Finding -> Maybe Yen
 lowerBound e = e.payable <|> e.priceIncl <|> e.priceExcl
 
 -- | 個別ページの記録と一覧の候補をまとめ、重複を除いて、枠ごとに安い順に並べる。
@@ -146,11 +175,11 @@ lowerBound e = e.payable <|> e.priceIncl <|> e.priceExcl
 -- * 同じURLは、個別ページの記録を残す。
 -- * 同じ在庫（共通の在庫番号）は1つにして、確認済みの方、次に安い方を残す。
 -- * 枠の中は、確認済み（支払額の安い順）→ 一部だけ読めたもの → 未確認、の順。
-rank :: [ItemRecord] -> [Candidate] -> [Entry]
-rank items cands =
-  let fromItems = map fromItem (latestItems items)
+arrange :: [Reading] -> [Sighting] -> [Finding]
+arrange items cands =
+  let fromItems = map fromReading (latestReadings items)
       seen = map (.url) fromItems
-      fromLists = nubBy ((==) `on` (.url)) [e | e <- map fromCandidate cands, e.url `notElem` seen]
+      fromLists = nubBy ((==) `on` (.url)) [e | e <- map fromSighting cands, e.url `notElem` seen]
       ordered = sortOn sortKey (fromItems <> fromLists)
    in sortOn (\e -> (e.frame, sortKey e)) (mergeSameStock ordered)
  where

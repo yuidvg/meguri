@@ -21,7 +21,7 @@ module Meguri.Site.DirectStores
   ) where
 
 import Data.Text qualified as T
-import Meguri.Catalog (SiteDef, lookupSite)
+import Meguri.Catalog (Channel, lookupSite)
 import Meguri.Extract.Html
 import Meguri.Extract.JsonLd (atPath, ldValues, str)
 import Meguri.Extract.Price (TaxMark (..), parsePrice, parseYen, stockFromSchema)
@@ -40,7 +40,7 @@ storeAdapter sid shop opts item =
     , itemX = Just (\ctx d -> item ctx (visibleText ctx.tags) (direct shop ctx d))
     }
  where
-  site :: Maybe SiteDef
+  site :: Maybe Channel
   site = lookupSite sid
 
 -- | 一覧を読まない店（検索結果がJSで描画される）

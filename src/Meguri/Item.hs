@@ -8,8 +8,8 @@ module Meguri.Item
 
 import Data.ByteString qualified as BS
 import Data.Time (getCurrentTime)
-import Meguri.Catalog (SiteDef (..), Tier (..))
-import Meguri.Confirm (toItemRecord)
+import Meguri.Catalog (Channel (..), Tier (..))
+import Meguri.Confirm (toReading)
 import Meguri.Extract.Generic (genericDraft)
 import Meguri.Extract.Html (parse)
 import Meguri.Fetch.Encoding (decodeBody)
@@ -24,15 +24,16 @@ import Protolude
 
 -- | HTMLの文字列 → 記録（純粋）。HTTP で取ったページにも、ブラウザで保存したページにも、
 -- fixture にも、同じ関数を使う。
-extractItem :: PageOrigin -> Text -> Text -> Text -> ItemRecord
+extractItem :: PageOrigin -> Text -> Text -> Text -> Reading
 extractItem origin url stamp html =
   let ts = parse html
       def = siteForUrl url
-      siteId = maybe "unknown" (.sid) def
+      -- カタログに無いサイト（価格.com から行く店など）は、ホスト名で呼ぶ
+      siteId = maybe (hostOf url) (.sid) def
       base = genericDraft siteId url stamp ts
    in case def >>= (.itemX) . adapterFor of
-        Just f -> toItemRecord origin True (tidyOffer (f (ItemCtx url ts html) base))
-        Nothing -> toItemRecord origin False (tidyOffer base)
+        Just f -> toReading origin True (tidyOffer (f (ItemCtx url ts html) base))
+        Nothing -> toReading origin False (tidyOffer base)
 
 data ItemError
   = -- | 取りに行く前に分かる誤り（ブラウザで保存したHTMLが要る、など）
@@ -41,7 +42,7 @@ data ItemError
     ItemFetch Text
 
 -- | URL を取りに行く。@--html@ があれば、そのファイルを読む（通常のブラウザで保存したHTML）。
-readItem :: Fetcher -> Text -> Maybe FilePath -> IO (Either ItemError ItemRecord)
+readItem :: Fetcher -> Text -> Maybe FilePath -> IO (Either ItemError Reading)
 readItem f url saved = case saved of
   Just path -> do
     body <- BS.readFile path
@@ -49,7 +50,7 @@ readItem f url saved = case saved of
     let (_, html) = decodeBody Nothing body
     pure (Right (extractItem FromCapture url (jstStamp now) html))
   Nothing -> case (.tier) <$> siteForUrl url of
-    Just t | t `elem` [BrowserJs, BrowserNormal] -> pure (Left (ItemUsage "このサイトの個別ページはHTTPで読めない。ブラウザで開いてHTMLを保存し、--html <file> で渡す"))
+    Just t | t `elem` [BrowserJs, BrowserNormal] -> pure (Left (ItemUsage "このサイトの個別ページはHTTPで読めない。ブラウザで開いてHTMLを保存し、--page URL=FILE（item なら --html FILE）で渡す"))
     Just TierBlocked -> pure (Left (ItemUsage "このサイトはどの方法でも読めなかった（meguri sites --format md の注記を見る）"))
     _ -> do
       r <- fetchPage f url
@@ -60,13 +61,13 @@ readItem f url saved = case saved of
            in case classify p.status html of
                 PageOk -> Right (extractItem FromHttp url (jstStamp p.fetchedAt) html)
                 PageNotFound -> Left (ItemFetch "HTTP 404（ページが無い。売り切れて消えたかもしれない）")
-                PageBlocked why -> Left (ItemFetch ("ブロックされた：" <> why <> "。通常のブラウザで開いて --html で渡す"))
+                PageBlocked why -> Left (ItemFetch ("ブロックされた：" <> why <> "。通常のブラウザで開いてHTMLを保存し、--page URL=FILE（item なら --html FILE）で渡す"))
                 PageStopped why -> Left (ItemFetch ("停止中：" <> why))
                 PageError why -> Left (ItemFetch why)
 
 -- | 'readItem' に加えて、配送先（MEGURI_PREF）が決まっていて、送料を計算できるサイトなら、
 -- 送料を問い合わせて記録に入れる。問い合わせに失敗したら、記録はそのまま返す。
-readItemShipped :: Fetcher -> Maybe Pref -> Text -> Maybe FilePath -> IO (Either ItemError ItemRecord)
+readItemShipped :: Fetcher -> Maybe Pref -> Text -> Maybe FilePath -> IO (Either ItemError Reading)
 readItemShipped f pref url saved = do
   r <- readItem f url saved
   case (r, pref >>= (`shipPlan` url)) of

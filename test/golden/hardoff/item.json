@@ -87,7 +87,7 @@
             "value": "ハードオフ八王子堀之内店"
         },
         "shipping": {
-            "note": "都道府県ごと。POST /ajax/CHfOmCalcDelvCom_J.jsp で取れる",
+            "note": "都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる",
             "raw": null,
             "source": {
                 "contents": "Body",

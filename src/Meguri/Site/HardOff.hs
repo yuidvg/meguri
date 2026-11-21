@@ -50,7 +50,7 @@ itemPage ctx d =
         (Just p, Just sub)
           | taxMark sub == Just MarkIncl, Just y <- parseYen p -> gotRaw Body (p <> " " <> sub) y
         _ -> missing Body "本文の税込価格が読めなかった"
-    , shipping = withNote "都道府県ごと。POST /ajax/CHfOmCalcDelvCom_J.jsp で取れる" (got Body ByDestination)
+    , shipping = withNote "都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる" (got Body ByDestination)
     , seller = bodyField Body "取扱店舗が読めなかった" (textOfClass "product-detail-store__name" ctx.tags <|> storeFromLink)
     , buy = case find (\t -> hasClass "product-detail-cart-btn" t || attr "id" t == Just "cartIn") ctx.tags of
         Just _ -> got Body (BuyActive "カートに入れる")

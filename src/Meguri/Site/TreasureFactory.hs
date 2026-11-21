@@ -49,7 +49,7 @@ itemPage ctx d =
     , priceIncl = case textOfClass "pj-item_detail_pricetext" ctx.tags of
         Just t | Just y <- parseYen t -> withNote "本文の大きい表示（税込）" (gotRaw Body t y)
         _ -> missing Body "本文の税込価格が読めなかった"
-    , shipping = withNote "都道府県ごと。/item/postage?code={商品番号}&prefId={都道府県コード} で取れる" (got Body ByDestination)
+    , shipping = withNote "都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる" (got Body ByDestination)
     , image = fmap large d.image
     , buy = case find (\t -> attr "id" t == Just "item-cartbutton") ctx.tags of
         Just _ -> got Body (BuyActive "カートに入れる")

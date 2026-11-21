@@ -20,7 +20,7 @@ import Meguri.Fetch.Http
 import Meguri.Health (Health (..))
 import Meguri.Item
 import Meguri.Sanitize (usableUrl)
-import Meguri.Search (searchUrl)
+import Meguri.List (searchUrl)
 import Meguri.Site.Common
 import Meguri.Sites
 import Meguri.Text (clean, decodeEntities, jstStamp)
@@ -39,7 +39,7 @@ checkAll f o = do
   mapConcurrently (checkSite f day o.everything) (filter (\s -> null o.only || s.sid `elem` o.only) catalog)
 
 -- | 検索結果のHTMLから、個別ページの形に合うリンクを拾う（アダプタの無いサイト用。純粋）
-itemLinks :: SiteDef -> Text -> Tags -> [Text]
+itemLinks :: Channel -> Text -> Tags -> [Text]
 itemLinks s base ts =
   ordNub
     [ u
@@ -50,7 +50,7 @@ itemLinks s base ts =
     , matchesItem s u
     ]
 
-checkSite :: Fetcher -> Text -> Bool -> SiteDef -> IO Health
+checkSite :: Fetcher -> Text -> Bool -> Channel -> IO Health
 checkSite f day everything s = case s.tier of
   TierOutOfScope -> pure (h "対象外" "—" True)
   TierStopped _ -> case s.home of

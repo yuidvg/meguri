@@ -39,7 +39,7 @@ variantIds :: Text -> [Text]
 variantIds html = ordNub [T.takeWhile isAlphaNum (T.drop (T.length "var prdlprc") hit) | hit <- drop 1 (T.splitOn "var prdlprc" ("x" <> html)) >>= \s -> ["var prdlprc" <> s]]
 
 -- | 検索結果のうち、価格.com の製品ページ（/item/K… か /item/J…）に行くもの
-searchItem :: ListCtx -> Tags -> Maybe (Offer ListSource)
+searchItem :: ListCtx -> Tags -> Maybe (Offer OnList)
 searchItem ctx el = do
   nameEl <- head (subtrees (hasClass "p-item_name") el)
   href <- attr "href" =<< find (isJust . attr "href") nameEl
@@ -67,7 +67,7 @@ fullscale pid
 
 -- | ショップ一覧。「売り場へ行く」の onclick にある k3c.atrack.ping({...}) を読む。
 -- 同じ店がタブ違いで重複して出るので、店と価格で1つにまとめる。
-shops :: ListCtx -> Tags -> [Offer ListSource]
+shops :: ListCtx -> Tags -> [Offer OnList]
 shops ctx ts =
   nubBy ((==) `on` (\o -> (o.seller.value, o.priceIncl.value))) $
     [ (listOffer ctx (shopPage (fromMaybe ctx.pageUrl (attr "href" t))))

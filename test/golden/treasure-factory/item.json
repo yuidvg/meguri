@@ -87,7 +87,7 @@
             "value": "トレジャーファクトリー郡山安積店"
         },
         "shipping": {
-            "note": "都道府県ごと。/item/postage?code={商品番号}&prefId={都道府県コード} で取れる",
+            "note": "都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる",
             "raw": null,
             "source": {
                 "contents": "Body",

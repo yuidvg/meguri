@@ -2,7 +2,7 @@
 module Meguri.Fetch.Http
   ( Fetcher
   , newFetcher
-  , Page (..)
+  , Fetched (..)
   , fetchPage
   , fetchReq
   , Req (..)
@@ -63,7 +63,7 @@ newFetcher cacheDir fresh pagesDir = do
   slots <- newQSem 8
   pure Fetcher {..}
 
-data Page = Page
+data Fetched = Fetched
   { url :: Text
   , status :: Int
   , contentType :: Maybe Text
@@ -90,15 +90,15 @@ data Req = Req
     private :: Bool
   }
 
-fetchPage :: Fetcher -> Text -> IO (Either Text Page)
+fetchPage :: Fetcher -> Text -> IO (Either Text Fetched)
 fetchPage f u = fetchReq f (Req u Nothing False)
 
-fetchReq :: Fetcher -> Req -> IO (Either Text Page)
+fetchReq :: Fetcher -> Req -> IO (Either Text Fetched)
 fetchReq f r
   | not (publicUrl r.url) = pure (Left "公開のホストのURLではないので、取りに行かない")
   | otherwise = fetchPublic f r
 
-fetchPublic :: Fetcher -> Req -> IO (Either Text Page)
+fetchPublic :: Fetcher -> Req -> IO (Either Text Fetched)
 fetchPublic f req = do
   let u = req.url
       -- キャッシュのキー：URL と、POST ならフォームの中身
@@ -106,7 +106,7 @@ fetchPublic f req = do
   now <- getCurrentTime
   hit <- if f.fresh || req.private then pure Nothing else readCache f.cacheDir cacheTtl now key
   case hit of
-    Just (e, body) -> pure (Right (Page u e.status e.contentType body True e.at))
+    Just (e, body) -> pure (Right (Fetched u e.status e.contentType body True e.at))
     Nothing -> do
       lock <- modifyMVar f.hosts $ \m -> case Map.lookup (hostOf u) m of
         Just l -> pure (m, l)
@@ -126,7 +126,7 @@ fetchPublic f req = do
       pure r
 
 -- | 前の取得から2秒空ける。503 は一度だけ5秒待って取り直す（楽天は続けて検索すると503が出る）。
-paced :: UTCTime -> IO (Either Text Page) -> IO (Either Text Page)
+paced :: UTCTime -> IO (Either Text Fetched) -> IO (Either Text Fetched)
 paced lastAt act = do
   now <- getCurrentTime
   let wait = minInterval - realToFrac (diffUTCTime now lastAt) :: Double
@@ -136,7 +136,7 @@ paced lastAt act = do
     Right p | p.status == 503 -> threadDelay 5000000 >> act
     _ -> pure r
 
-request :: Fetcher -> Req -> IO (Either Text Page)
+request :: Fetcher -> Req -> IO (Either Text Fetched)
 request f r = case parseRequest (toS r.url) of
   Nothing -> pure (Left "URLの形が正しくない")
   Just req0 -> do
@@ -160,7 +160,7 @@ request f r = case parseRequest (toS r.url) of
       Left (e :: HttpException) -> Left (describe e)
       Right resp ->
         Right
-          Page
+          Fetched
             { url = u
             , status = statusCode (responseStatus resp)
             , contentType = TE.decodeLatin1 <$> lookup "Content-Type" (responseHeaders resp)

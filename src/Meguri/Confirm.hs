@@ -1,9 +1,9 @@
 -- | 確認済みかどうかを計算で決める。
 --
--- 受け取るのは個別ページの値（@Offer ItemSource@）だけ。
--- 一覧やAPIの値（@Offer ListSource@）からは 'Confirmed' を作れない。
+-- 受け取るのは個別ページの値（@Offer OnPage@）だけ。
+-- 一覧やAPIの値（@Offer OnList@）からは 'Confirmed' を作れない。
 module Meguri.Confirm
-  ( toItemRecord
+  ( toReading
   , judge
   , missingFields
   ) where
@@ -13,12 +13,12 @@ import Meguri.Types
 import Protolude
 
 -- | 下書きに「HTTPで取った／ブラウザで保存した」の別を付け、判定を添える
-toItemRecord :: PageOrigin -> Bool -> Draft -> ItemRecord
-toItemRecord origin adapter d =
+toReading :: PageOrigin -> Bool -> Draft -> Reading
+toReading origin adapter d =
   let wrap = case origin of
         FromHttp -> ItemPage
         FromCapture -> Captured
-      f :: Field Method a -> Field ItemSource a
+      f :: Field Method a -> Field OnPage a
       f = mapSource wrap
       o =
         Offer
@@ -37,17 +37,17 @@ toItemRecord origin adapter d =
           , keys = d.keys
           , at = d.at
           }
-   in ItemRecord {offer = o, adapter, confirmation = judge adapter o}
+   in Reading {offer = o, adapter, confirmation = judge adapter o}
 
 -- | 名前・税込価格・送料・在庫・販売者・画像・購入の入口が、すべて読めたら確認済み
-judge :: Bool -> Offer ItemSource -> Confirmation
+judge :: Bool -> Offer OnPage -> Confirmation
 judge adapter o = case missingFields o <> ["アダプタ（汎用の抽出だけ）" | not adapter] of
   [] -> Confirmed
   ms
     | length (missingFields o) == 7 -> Unconfirmed
     | otherwise -> Partial ms
 
-missingFields :: Offer ItemSource -> [Text]
+missingFields :: Offer OnPage -> [Text]
 missingFields o =
   concat
     [ ["名前" | isNothing o.name.value]

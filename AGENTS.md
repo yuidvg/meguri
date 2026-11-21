@@ -2,7 +2,7 @@
 
 購入調査（purchase-research スキル）の決まった作業を受け持つ CLI。販路の一覧を持ち、検索URLを組み立て、ページを取り、値を抜き出して揃え、「どこまで探したか」の表を埋める。判断（同じ物か、状態、本命選び）と、ブラウザでしか見られないサイトを開く作業は、エージェントと人に残す。
 
-買わない。ログインしない。フォームを送らない（カタログに載せた読み取り専用の POST は除く）。LLM を呼ばない。ボット確認やブロックが出たら、そのホストの取得をやめる（UAは `meguri/<版> (+リポジトリのURL)` と名乗り、偽装しない）。
+買わない。ログインしない。フォームを送らない（カタログに載せた読み取り専用の POST は除く）。自分では判断しない（「探している物か」の判定は、頼まれたときだけ、判定モデル jev か外のコマンドに渡す。文章を作る LLM は呼ばない）。ボット確認やブロックが出たら、そのホストの取得をやめる（UAは `meguri/<版> (+リポジトリのURL)` と名乗り、偽装しない）。
 
 ## 開発のコマンド
 
@@ -24,42 +24,92 @@ nix flake check                     # テストと、docs/channels.md が古く�
 
 ## 使い方
 
+人向けの説明は README.md にある。
+
 ```bash
-meguri search "WH-1000XM5" --kind all            # 全サイトを当たる。候補（未確認）と「どこまで探したか」
-meguri search "WH-1000XM5" --min-price 12000     # 付属品を標準出力から外す（candidates.jsonl には全部残る）
-meguri verify --top 10 --min-price 12000         # 候補の上位の個別ページを読み、確認済みかどうかと、一覧からの変化を出す
-meguri item <URL>                                # 個別ページを1つ読み、基準の項目を出どころつきで出す
-meguri item <URL> --html saved.html              # ブラウザで保存したHTMLを読む（取りに行かない）
-MEGURI_PREF=13 meguri ship <URL>                 # 送料を計算できるサイトで、配送先までの送料を入れる
-meguri rank --min-price 12000                    # 重複を除き、枠（すぐ買える／入札次第／訳あり／中古／いまは買えない）に分ける
-meguri sold "WH-1000XM5" --min-price 12000       # ヤフオクの落札相場（件数・最安・中央値・最高）
-meguri recall "ヘッドホン" "headphone"            # 消費者庁と CPSC のリコール情報
-meguri render --format md --min-price 12000      # スキルの出力の表（候補・未確認の候補・どこまで探したか）
-meguri sites [--format md]                       # カタログ
-meguri check [--write] [--all] [--only <site>]   # サイトごとの健康診断
+meguri search "WH-1000XM5" --min-price 12000 --has XM5     # 何を・どこを → 個別ページまで読んだ結果、を1回で
+meguri search "WH-1000XM5" --format jsonl                   # 構造化した出力（meguri.result/1 など）
+meguri search "WH-1000XM5" --format md                      # スキルの出力の表（候補・未確認の候補・どこまで探したか）
+meguri search "WH-1000XM5" --url <URL> --page <URL>=saved.html   # 名指しのページ（HTTPで読めるもの・ブラウザで保存したHTML）を結果に入れる
+meguri search "WH-1000XM5" --judge '<質問>'                  # 何を：探している物かどうかを、判定モデル jev に聞く（OPENROUTER_API_KEY が要る）
+meguri search "WH-1000XM5" --judge-cmd '<コマンド>'           # 何を：同じ判定を、外のコマンドに任せる
+meguri search "WH-1000XM5" --category リユース --judge-channel '<質問>'   # どこを：当たる販路を選ぶ
+MEGURI_PREF=13 meguri search "WH-1000XM5" --only hardoff    # 送料を計算できるサイトで、配送先までの送料を入れる
+meguri item <URL> [--html saved.html]                       # 個別ページを1つ読み、基準の項目を出どころつきで出す
+meguri sold "WH-1000XM5" --min-price 12000                  # ヤフオクの落札相場（件数・最安・中央値・最高）
+meguri recall "ヘッドホン" "headphone"                       # 消費者庁と CPSC のリコール情報
+meguri sites [--format md]                                  # カタログ
+meguri check [--write] [--all] [--only <site>]              # サイトごとの健康診断
 ```
 
-- 流れ：`search` → 「ブラウザで開く」の行のURLを開く → `verify`（HTTPで読めるもの）と `item --html`（ブラウザで保存したもの） → `rank` → `render`。
-- 実行の状態は `$XDG_CACHE_HOME/meguri/runs/<id>/`（`candidates.jsonl`・`coverage.jsonl`・`items.jsonl`・`sold.jsonl`・`recalls.jsonl`・`ranked.jsonl`・`pages/`）。7日で消える。`search` が新しい実行を作り、ほかのコマンドは直前の実行（か `--run <id>`）を使う。詳しい中身は jq で読む。
-- 標準出力は30KB以内。候補は「少なくともこの額」（支払額。送料が分からなければ税込価格）の安い順で、同じURLと同じ在庫（共通の在庫番号）は1つにまとめる。
-- `MEGURI_PREF`（配送先の都道府県コード 01〜47 か都道府県名）があると、`item`・`verify`・`ship` は、送料を計算できるサイト（ハードオフ・トレジャーファクトリー）で送料を問い合わせる。配送先は、キャッシュにも実行のフォルダにも残さない。
-- 終了コード：0＝成功（一部のサイトがブロックでも成功）、2＝使い方の誤り、3＝取りに行った全サイトで失敗。
-- JSON Lines の各行には `schema`（`meguri.candidate/1`・`meguri.coverage/1`・`meguri.item/1`・`meguri.sold/1`・`meguri.recall/1`・`meguri.ranked/1`）が付く。
+- **`search` は、入力だけで結果が決まる。** 前に走らせた結果を読んで続きに使うコマンドは無い（`verify`・`rank`・`render` と `--run` は、なくした）。ブラウザで保存したページを足したいときは、`--page` を付けて同じ `search` をもう一度走らせる。取ったページと判定の答えは15分キャッシュされるので、サイトには当たり直さない。
+- **`search` の形は「何を（`Query`）→ どこを（`Scope`）→ 結果（`Report`）」。** 「どこまで」は `Effort`。
+  - 何を：検索語と、見つけた売り物のうち「探している物」と認める選び方（`--min-price`・`--max-price`・`--has`・`--not`・`--judge`・`--judge-cmd`）。
+  - どこを：当たる販路の選び方（`--only`・`--skip`・`--category`・`--judge-channel`・`--judge-channel-cmd`）、新品・中古（`--market`）、名指しのページ（`--url`・`--page`）。
+  - どこまで：個別ページを読む数（`--read N`。販路と新品・中古の組ごとに、安い順で。既定は 3）と、時間（`--time`）。
+- **選び方（`Selection a`）は、条件（`Criterion`）と判定（`Judge`）でできている。** 選ばれるのは「全部を満たすもの」で、書く順によらない。条件を先に、判定を後にかける。
+  - 条件は純粋で、1件ごとに決まる。「何を」の条件は、一覧の値と、個別ページを読んだあとの値の両方にかける。
+  - 判定は、判断を外に任せる（jev か、外のコマンド）。一覧がそろってから1回だけ呼ぶ。失敗したら、そこでやめる（かけなかったことにして先へ進まない）。
+  - 名指しのページは、「何を」の選び方で外さない。
+  - 「選ぶ」ものを足すときは、何を選ぶのか（販路か、売り物か）を先に決めて、その `Selection` の条件か判定として足す。専用の引数を別に生やさない。
+- **jev**（TypeSafe の判定モデル）は、OpenRouter の Decisions API で呼ぶ。`OPENROUTER_API_KEY` があるときだけ動き、無ければ取りに行く前に終了コード 2 でやめる。1件につき1回、はい／いいえの質問をして、「はい」の確率が 0.5 以上なら残す。キーは、ログにもキャッシュのキーにも入れない。渡すのは、一覧の値と検索語だけ（配送先は渡さない）。モデルは `MEGURI_JEV_MODEL` で変えられる。
+- 選び方が無いと、安い順の上に並ぶ付属品の個別ページを読むことになる。型番なら `--min-price` と `--has`、か `--judge` を付ける。
+- **時間の上限は `--time 秒`**（既定は 60）。過ぎたら読めた分だけで返し、読めなかった候補は「時間切れ」として出す。もう一度走らせると、キャッシュを使って続きを読む。楽天の個別ページは、1件に10秒ほどかかることがある（2026-11-21）。
+- 実行の記録は `$XDG_CACHE_HOME/meguri/runs/<id>/`（`readings.jsonl`＝読んだ個別ページの全項目と出どころ、`sightings.jsonl`＝一覧で見かけた売り物の全部、`coverage.jsonl`、`pages/`）。書くだけで、あとのコマンドは読まない。7日で消える。
+- 標準出力（`table`）は30KB以内。確かめた候補は、枠ごとに、確認済み → 一部 の順で、支払額の安い順。同じURLと同じ在庫（共通の在庫番号）は1つにまとめる。
+- `MEGURI_PREF`（配送先の都道府県コード 01〜47 か都道府県名）があると、`search`・`item`・`ship` は、送料を計算できるサイト（ハードオフ・トレジャーファクトリー）で送料を問い合わせる。配送先は、キャッシュにも実行の記録にも残さない。
+- 終了コード：0＝成功（一部のサイトがブロックでも成功）、2＝使い方の誤り、3＝取りに行った全サイトで失敗（か、判定が失敗）。
+- JSON Lines の各行には `schema`（`meguri.result/1`・`meguri.unread/1`・`meguri.summary/1`・`meguri.coverage/1`・`meguri.reading/1`・`meguri.sighting/1`・`meguri.sold/1`・`meguri.recall/1`）が付く。
 
 ## 作りの要点
 
 ```
-カタログ → 検索URL → 取得（間隔・キャッシュ・文字コード） → 抽出 → 正規化 → 候補（未確認）
-                                                              └→ どこまで探したか
-候補 → 個別ページ（HTTP か、ブラウザで保存したHTML） → 同じ抽出 → 確認済みの判定 → 重複の除去・枠 → 表
+Request
+ ├─ scope.channels ─ カタログから選ぶ ──→ 当たる販路（Selected Channel） ─┐
+ ├─ scope.markets ────────────────────────────────────────────────────────┤
+ ├─ query.terms ──────────────────────────────────────────────────────────┴─ lookups ──→ [Lookup]
+ │                              [Lookup] ─ 取得・抽出・正規化（listThen） ──→ [Coverage]（どこまで探したか）
+ │                                                                       └─→ [Sighting]（一覧で見かけた売り物）
+ ├─ query.accept ─ [Sighting] から選ぶ ──→ Selected Sighting ─ cheapest ──→ [Page] ─┐
+ ├─ scope.pages（名指し） ─────────────────────────────────────────────────→ [Page] ─┴─ readPages ──→ [Checked] + [Unread]
+ ├─ query.accept の条件 ─ 読めた値でもう一度 ──→ [Checked]
+ └─ arrange（重複の除去・枠） ──→ [Finding] ──→ Report ──→ 出力（table・jsonl・md）
 ```
+
+- **状態を持たない。** `search` の結果は、`Request` と、そのときのサイトの中身だけで決まる。途中の結果をファイルに置いて、あとのコマンドが書き足していく作りにしない。速さは、並列の取得とキャッシュで出す。
+- **名前**（同じものを、別の名前で呼ばない）：
+
+  | 名前 | 意味 |
+  |---|---|
+  | `Channel` | 販路（カタログの1件） |
+  | `Market` | 新品（`New`）か中古（`Used`）か |
+  | `Lookup` | 検索1回（販路・語・新品か中古か） |
+  | `Coverage` | 検索1回の結果（どこまで探したか、の1行） |
+  | `Offer s` | 売り物1つについて読めた値。`s` は、値をどこで見たか（`OnList`＝一覧・API、`OnPage`＝個別ページ） |
+  | `Sighting` | 一覧で見かけた売り物（未確認） |
+  | `Page` | 読む個別ページ（一覧から選んだもの、名指しのもの） |
+  | `Reading` | 個別ページを読んだ値と、確認済みの判定 |
+  | `Checked`・`Unread` | 個別ページを読めたもの・読めなかったもの |
+  | `Finding` | 結果の1件（枠つき。重複をまとめたあと） |
+  | `Seen` | 選び方が見る、売り物の見え方（`Sighting` からも `Reading` からも作る） |
+
+- **モジュール**：
+  - `Meguri.Search`：`search` の全体（`Request`・`Effort`・`Report`）。判定が無ければ、一覧が取れた販路から順に個別ページを読み始める。結果をまとめる `assemble` は純粋。
+  - `Meguri.Selection`：選び方（`Selection`・`Criterion`・`Judge`・`Selected`・`Excluded`）。何を選ぶかによらない。
+  - `Meguri.Judge`：判定の頼み先。外のコマンドと jev。
+  - `Meguri.Query`：何を探すか（`Query`・`Seen`、価格と商品名の条件）。
+  - `Meguri.Scope`：どこを探すか（`Scope`、販路の条件）。
+  - `Meguri.List`：検索の一覧を作り（`lookups`）、取りに行く。
+  - `Meguri.Read`：読むページの選び方（`cheapest`）と、個別ページの読み取り。期限つき。
+  - `Meguri.Arrange`：重複を除き、枠に分けて並べる。
+  - `Meguri.Report`：`search` の出力（表・JSON Lines・Markdown）。
 
 - **サイトの知識の出どころは `src/Meguri/Catalog.hs` だけ。** `docs/channels.md` はそこから作る。注記を docs に直接書かない。健康診断の結果だけは `src/Meguri/Catalog/Health.hs` にあり、`meguri check --write` が書く（手で直さない）。
 - **取得と抽出を分ける。** 抽出は「HTMLの文字列 → 値」の純粋な関数（`Meguri.Extract.*`・`Meguri.Site.*`）。HTTP で取ったページにも、保存したHTMLにも、fixture にも同じ関数を使う。取得・時刻・キャッシュは `Meguri.Fetch.*`・`Meguri.Run`・`app/Main.hs` に置く。
 - **値ごとに出どころを持たせる**（`Field s a`）。読めなかった値は `null` にして `note` に理由を書く。数字は作らない：税抜しか無ければ税込は `null`、本文で税込と確かめられない額も `null`、送料が配送先しだいなら支払額は `null`。
   - 価格の欄に「税込」の文字が無い店（コストコ、ヤマダ、ニトリ）は、確かめた日つきの「サイトの決まり」として税込と読み、そのことを `note` に書く。
   - BUYMA は、「関税負担なし」の印があるときだけ、表示価格を支払う額として読む。eBay は、円の額が目安の換算なので、税込価格と支払額を出さない。
-- **確認済みは型で縛る。** 一覧・APIの値は `Offer ListSource`、個別ページの値は `Offer ItemSource`。`Meguri.Confirm.judge` は後者しか受け取らないので、一覧の値から `Confirmed` は作れない。汎用の抽出だけ（アダプタなし）の記録も `Confirmed` にしない。`rank` も、一覧の候補は未確認のまま並べる。
+- **確認済みは型で縛る。** 一覧・APIの値は `Offer OnList`、個別ページの値は `Offer OnPage`。`Meguri.Confirm.judge` は後者しか受け取らないので、一覧の値から `Confirmed` は作れない。汎用の抽出だけ（アダプタなし）の記録も `Confirmed` にしない。枠に分けるとき（`Meguri.Arrange`）も、一覧の候補は未確認のまま並べる。
 - **汎用の部品が先、アダプタは癖だけ。** `Meguri.Extract.Generic` が JSON-LD → microdata（Product の範囲だけ）→ OGP の順に読み、アダプタが上書きする。
   - `Meguri.Site.<サイト>`：モール・フリマ・リユース店（楽天、Yahoo!、価格.com、ヤフオク、Yahoo!フリマ、ラクマ、ハードオフ、トレジャーファクトリー、ジモティー、ブックオフ）。
   - `Meguri.Site.DirectStores`：直販の店（ロフト、ハンズ、Francfranc、コーナン、ディノス、ジャパネット、イオシス、イシバシ楽器、カインズ、cado、買取王国、赤ちゃん本舗、コストコ、IKEA、ソフマップ）。共通の部品は `Meguri.Site.Store`（税込の裏づけ、「◯円以上で送料無料」、カートの読み取り、在庫の言い回し、JAN のチェックディジット、一覧のカード切り）。
@@ -108,11 +158,12 @@ agent-browser eval "document.documentElement.outerHTML" > saved.txt   # JSON の
   - HTTP の段で、まだ汎用の抽出だけのサイト：ショップチャンネル、BALMUDA、plywood、ACTUS、unico、IDÉE、ビバホーム、たのめーる、カウネット、モバオク、ワンダーレックス、Rentio、CLAS、honto、紀伊國屋書店（`check` の「汎用の抽出」の行）。
   - au PAY マーケットの送料とカートのボタン（JSで描画される）、じゃんぱらの送料（画像で出る）は読めない。
   - 公式API（Yahoo!ショッピング 商品検索 v3 など）と、meguri がブラウザを動かす取得（指示書の 2.5 の Phase 2。任意）。
-  - 送料の計算は2サイトだけ。`verify` は、価格.com の転送URLのうちアフィリエイトの中継を挟むものは読まない。
+  - 送料の計算は2サイトだけ。価格.com の転送URL（アフィリエイトの中継を通るもの）は、自動では開かない（`Meguri.Read.tracked`）。「ブラウザで開く」として出す。
+  - 応答の遅いホスト（楽天の個別ページ）は、同じホストへ1本ずつという決まりのため、1回の `search` では読み切れないことがある。
 
 ## Phase 0 で調べて決めたこと（2026-11-20）
 
-- **UA**：`meguri/<版> (+https://github.com/yuidvg/meguri)`。URL は `Meguri.Fetch.Http.repoUrl` にある。リポジトリは非公開（2026-11-21 時点）なので、サイト側からはこのURLを開けない。
+- **UA**：`meguri/<版> (+https://github.com/yuidvg/meguri)`。URL は `Meguri.Fetch.Http.repoUrl` にある。リポジトリは 2026-11-22 に公開したので、サイト側からこのURLを開ける。
 - **段の確かめ直し**：HTTP可・個別ページだけHTTP可の段のサイトに、このUAで検索1回・個別1件を当てた。403 やボット確認は出なかった。いまは `meguri check` が同じことをして、結果を channels.md の「診断」に入れる。
 - **TLS**：hands.net は Extended Main Secret に対応していない。tls の既定（必須）ではつながらないので、「あれば使う」設定にした（証明書の検証は外していない）。
 - **公式API**（まだ実装していない。鍵の値はログとキャッシュのキーに入れない）

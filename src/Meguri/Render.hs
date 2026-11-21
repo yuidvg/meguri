@@ -3,19 +3,17 @@ module Meguri.Render
   ( yen
   , shippingShort
   , stockShort
-  , candidateLine
-  , candidateTable
+  , sightingLine
+  , sightingTable
   , soldTable
   , coverageSummary
-  , itemReport
-  , rankTable
-  , entryLine
+  , readingReport
   , confirmationText
   , confirmationMark
   , renderMd
   , sitesMd
   , sitesTable
-  , rankCandidates
+  , cheapestFirst
   ) where
 
 import Data.List (nubBy)
@@ -24,7 +22,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Meguri.Catalog
 import Meguri.Health (Health (..), healthOf)
-import Meguri.Rank (Entry (..), Frame (..), frameLabel, lowerBound)
+import Meguri.Arrange (Finding (..), Frame (..), frameLabel, lowerBound)
 import Meguri.Text (clean, shortStamp)
 import Meguri.Types
 import Protolude
@@ -58,8 +56,8 @@ stockShort = \case
 -- | 支払額の安い順。送料が分からないものは、税込価格を「少なくともこの額」として並べ、
 -- 同じ額なら支払額の分かる方を先にする（送料が配送先しだいの店を、後ろに追いやらない）。
 -- 同じURLと、同じ在庫（共通の在庫番号）は1つにして、安い方を残す。
-rankCandidates :: [Candidate] -> [Candidate]
-rankCandidates = nubBy sameStock . sortOn key . nubBy ((==) `on` (\c -> c.offer.url))
+cheapestFirst :: [Sighting] -> [Sighting]
+cheapestFirst = nubBy sameStock . sortOn key . nubBy ((==) `on` (\c -> c.offer.url))
  where
   sameStock a b = isJust a.offer.keys.sharedStockId && a.offer.keys.sharedStockId == b.offer.keys.sharedStockId
   key c = case (payable c.offer, c.offer.priceIncl.value <|> c.offer.priceExcl.value) of
@@ -68,8 +66,8 @@ rankCandidates = nubBy sameStock . sortOn key . nubBy ((==) `on` (\c -> c.offer.
     (Nothing, Nothing) -> (1, 0, 0)
 
 -- | 1候補1行：サイト・支払額・送料・在庫・切り詰めた商品名・URL
-candidateLine :: Candidate -> Text
-candidateLine c =
+sightingLine :: Sighting -> Text
+sightingLine c =
   let o = c.offer
       pay = case (payable o, o.priceIncl.value, o.priceExcl.value) of
         (Just p, _, _) -> yen p
@@ -86,13 +84,13 @@ candidateLine c =
         , clean 200 o.url
         ]
 
-candidateTable :: Int -> [Candidate] -> Text
-candidateTable = offerTable "候補（未確認）" "　※一覧の値。個別ページで確かめるまで確定ではない"
+sightingTable :: Int -> [Sighting] -> Text
+sightingTable = offerTable "候補（未確認）" "　※一覧の値。個別ページで確かめるまで確定ではない"
 
 -- | 売れた価格の表。件数・最安・中央値・最高を添える（価格だけ。送料は入れない）。
-soldTable :: Int -> [Candidate] -> Text
+soldTable :: Int -> [Sighting] -> Text
 soldTable limit cs =
-  let prices = sort (mapMaybe (\c -> c.offer.priceIncl.value) (rankCandidates cs))
+  let prices = sort (mapMaybe (\c -> c.offer.priceIncl.value) (cheapestFirst cs))
       n = length prices
       median
         | n == 0 = Nothing
@@ -103,14 +101,14 @@ soldTable limit cs =
         _ -> ""
    in offerTable "売れた価格" stats limit cs
 
-offerTable :: Text -> Text -> Int -> [Candidate] -> Text
+offerTable :: Text -> Text -> Int -> [Sighting] -> Text
 offerTable label remark limit cs =
-  let ranked = rankCandidates cs
+  let ranked = cheapestFirst cs
       shown = take limit ranked
    in T.unlines $
         (label <> show (length ranked) <> "件" <> (if length ranked > limit then "のうち、安い順に" <> show limit <> "件" else "") <> remark)
           : "サイト\t支払額\t送料\t在庫\t商品名\tURL"
-          : map candidateLine shown
+          : map sightingLine shown
 
 statusShort :: Status -> Text
 statusShort = \case
@@ -122,8 +120,8 @@ statusShort = \case
   OutOfScope why -> "対象外：" <> clean 50 why
   Error why -> "失敗：" <> clean 60 why
 
-kindShort :: Kind -> Text
-kindShort = \case
+marketShort :: Market -> Text
+marketShort = \case
   New -> "新"
   Used -> "中古"
 
@@ -147,16 +145,16 @@ coverageSummary cov =
   bySite = Map.fromListWith (flip (<>)) [(c.site, [c]) | c <- cov]
   grouped = [(s, Map.findWithDefault [] s bySite) | s <- order]
   siteLine (s, rows) =
-    let many = length (nubBy (==) (map (.query) rows)) > 1
+    let many = length (nubBy (==) (map (.term) rows)) > 1
         -- 価格以外の情報源（リコールなど）には、新品・中古の別が無い
-        kindOf c = if (categoryOf c.site) == Just NonPrice then "" else kindShort c.kind <> " "
-        part c = (if many then "「" <> clean 16 c.query <> "」" else "") <> kindOf c <> statusShort c.status
+        kindOf c = if (categoryOf c.site) == Just NonPrice then "" else marketShort c.market <> " "
+        part c = (if many then "「" <> clean 16 c.term <> "」" else "") <> kindOf c <> statusShort c.status
         needsUrl c = case c.status of
           NeedsBrowser _ -> True
           Stopped _ _ -> True
           _ -> False
         -- 同じ状態の行（ブラウザで開く・対象外など）は、最初の1つだけ書く
-        distinct = nubBy ((==) `on` (\c -> (bucket c, if isFound c then Just (c.query, c.kind) else Nothing))) rows
+        distinct = nubBy ((==) `on` (\c -> (bucket c, if isFound c then Just (c.term, c.market) else Nothing))) rows
         isFound c = case c.status of
           Found _ _ -> True
           Zero -> True
@@ -169,10 +167,10 @@ categoryOf :: Text -> Maybe Category
 categoryOf s = (.category) <$> lookupSite s
 
 -- | item の出力：基準の項目を、出どころつきで1行ずつ
-itemReport :: ItemRecord -> Text
-itemReport r =
+readingReport :: Reading -> Text
+readingReport r =
   let o = r.offer
-      row :: Text -> Field ItemSource a -> (a -> Text) -> Text
+      row :: Text -> Field OnPage a -> (a -> Text) -> Text
       row label f render =
         T.intercalate
           "\t"
@@ -210,7 +208,7 @@ confirmationText = \case
   Partial ms -> "partial（足りない：" <> T.intercalate "・" ms <> "）"
   Unconfirmed -> "unconfirmed（未確認）"
 
-sourceText :: ItemSource -> Text
+sourceText :: OnPage -> Text
 sourceText = \case
   ItemPage m -> "個別ページ/" <> methodText m
   Captured m -> "保存したHTML/" <> methodText m
@@ -231,35 +229,6 @@ methodText = \case
 cell :: Text -> Text
 cell = T.replace "|" "｜" . T.replace "\n" " "
 
--- | rank の出力：枠ごとに、判定つきで1件1行
-rankTable :: Int -> [Entry] -> Text
-rankTable limit entries =
-  T.unlines $
-    concat
-      [ (("【" <> frameLabel fr <> "】" <> show (length es) <> "件" <> (if length es > limit then "のうち" <> show limit <> "件" else "")) : map entryLine (take limit es)) <> [""]
-      | fr <- [minBound .. maxBound]
-      , let es = filter ((== fr) . (.frame)) entries
-      , not (null es)
-      ]
-      <> ["判定：確認済み＝個別ページで7項目すべて読めた／一部＝個別ページを読んだが足りない項目がある／未確認＝一覧の値だけ"]
-
-entryLine :: Entry -> Text
-entryLine e =
-  T.intercalate
-    "\t"
-    [ confirmationMark e.confirmation
-    , e.site
-    , case (e.payable, e.priceIncl, e.priceExcl) of
-        (Just p, _, _) -> yen p
-        (Nothing, Just p, _) -> yen p <> "+送料"
-        (Nothing, Nothing, Just p) -> yen p <> "(税抜)"
-        _ -> "¥?"
-    , shippingShort e.shipping
-    , stockShort e.stock
-    , clean 44 (fromMaybe "(名前なし)" e.name) <> (if null e.duplicates then "" else "（同じ在庫がほかに" <> show (length e.duplicates) <> "か所）")
-    , clean 200 e.url
-    ]
-
 confirmationMark :: Confirmation -> Text
 confirmationMark = \case
   Confirmed -> "確認済み"
@@ -269,14 +238,14 @@ confirmationMark = \case
 -- | スキルの出力の表（候補・未確認の候補・どこまで探したか）。公式と注記の列は空けておく。
 --
 -- 候補の表に入るのは、個別ページで確認済みになったものだけ。枠ごとに、支払額の安い順。
-renderMd :: Int -> [Entry] -> [Coverage] -> Text
+renderMd :: Int -> [Finding] -> [Coverage] -> Text
 renderMd limit entries cov =
   T.unlines $
     [ "## 候補"
     , ""
     , "個別ページで、名前・税込価格・送料・在庫・販売者・画像・購入の入口をすべて読めたもの。枠ごとに、支払額の安い順。"
     ]
-      <> (if null confirmed then ["", "（まだ無い。`meguri verify` か `meguri item <URL>` で個別ページを読む）"] else [])
+      <> (if null confirmed then ["", "（無い）"] else [])
       <> concat
         [ [ ""
           , "### " <> frameLabel fr
@@ -348,7 +317,7 @@ renderMd limit entries cov =
      in row
           [ maybe "" (categoryName . (.category)) def
           , maybe c.site (.label) def
-          , cell (clean 30 c.query) <> "（" <> kindShort c.kind <> "）"
+          , cell (clean 30 c.term) <> "（" <> marketShort c.market <> "）"
           , cell (statusShort c.status)
           , cell c.method <> maybe "" (\u -> " [URL](" <> u <> ")") (if needsLink c.status then c.url else Nothing)
           , shortStamp c.at

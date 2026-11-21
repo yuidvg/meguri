@@ -25,15 +25,15 @@ import Protolude
 
 data ListCtx = ListCtx
   { siteId :: Text
-  , query :: Text
-  , kind :: Kind
+  , term :: Text
+  , market :: Market
   , pageUrl :: Text
   , httpStatus :: Int
   , stamp :: Text
   }
 
 data ListOut = ListOut
-  { offers :: [Offer ListSource]
+  { offers :: [Offer OnList]
   , -- | 本当の0件（サイトが「該当なし」と返した）
     zero :: Bool
   , -- | 続けて取るページ（価格.com のショップ一覧など）
@@ -55,17 +55,17 @@ data Adapter = Adapter
 noAdapter :: Adapter
 noAdapter = Adapter Nothing Nothing
 
-listOffer :: ListCtx -> Text -> Offer ListSource
+listOffer :: ListCtx -> Text -> Offer OnList
 listOffer ctx url = emptyOffer SearchList ctx.siteId url ctx.stamp
 
-found :: [Offer ListSource] -> ListOut
+found :: [Offer OnList] -> ListOut
 found os = ListOut os False []
 
-sl :: a -> Field ListSource a
+sl :: a -> Field OnList a
 sl = got SearchList
 
 -- | 値があれば入れ、無ければ理由を書く
-slMaybe :: Text -> Maybe a -> Field ListSource a
+slMaybe :: Text -> Maybe a -> Field OnList a
 slMaybe why = maybe (missing SearchList why) sl
 
 bodyField :: Method -> Text -> Maybe a -> Field Method a

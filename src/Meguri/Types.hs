@@ -3,7 +3,7 @@
 -- | 値の型。値ごとに出どころ（'Field'）を持たせる。
 --
 -- 確認済みの値は、個別ページからの抽出でしか作れない。
--- 一覧やAPIの値は @Offer ListSource@、個別ページの値は @Offer ItemSource@ で、
+-- 一覧やAPIの値は @Offer OnList@、個別ページの値は @Offer OnPage@ で、
 -- 確認済みの判定（"Meguri.Confirm"）は後者しか受け取らない。
 module Meguri.Types
   ( Yen (..)
@@ -13,8 +13,8 @@ module Meguri.Types
   , Stock (..)
   , BuyEntry (..)
   , Method (..)
-  , ItemSource (..)
-  , ListSource (..)
+  , OnPage (..)
+  , OnList (..)
   , PageOrigin (..)
   , Field (..)
   , got
@@ -28,9 +28,9 @@ module Meguri.Types
   , Offer (..)
   , emptyOffer
   , payable
-  , Candidate (..)
-  , ItemRecord (..)
-  , Kind (..)
+  , Sighting (..)
+  , Reading (..)
+  , Market (..)
   , Status (..)
   , Coverage (..)
   , Confirmation (..)
@@ -100,7 +100,7 @@ data Method
   deriving anyclass (ToJSON, FromJSON)
 
 -- | 個別ページだけが持てる出どころ
-data ItemSource
+data OnPage
   = -- | HTTP で取った個別ページ
     ItemPage Method
   | -- | 通常のブラウザで保存した個別ページ
@@ -109,7 +109,7 @@ data ItemSource
   deriving anyclass (ToJSON, FromJSON)
 
 -- | 一覧・APIの出どころ（確認済みにはならない）
-data ListSource = SearchList | Api Text
+data OnList = SearchList | Api Text
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
@@ -212,22 +212,22 @@ payable o = do
   s <- o.shipping.value
   (p +) <$> shippingCost p s
 
-data Kind = New | Used
+data Market = New | Used
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | 一覧やAPIから作った候補（未確認）
-data Candidate = Candidate
-  { query :: Text
-  , kind :: Kind
-  , offer :: Offer ListSource
+data Sighting = Sighting
+  { term :: Text
+  , market :: Market
+  , offer :: Offer OnList
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
 -- | 個別ページから作った記録
-data ItemRecord = ItemRecord
-  { offer :: Offer ItemSource
+data Reading = Reading
+  { offer :: Offer OnPage
   , -- | サイトのアダプタで読んだか（汎用の抽出だけなら確認済みにしない）
     adapter :: Bool
   , confirmation :: Confirmation
@@ -259,8 +259,8 @@ data Status
 -- | 「どこまで探したか」の1行
 data Coverage = Coverage
   { site :: Text
-  , query :: Text
-  , kind :: Kind
+  , term :: Text
+  , market :: Market
   , status :: Status
   , url :: Maybe Text
   , method :: Text

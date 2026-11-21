@@ -23,7 +23,7 @@ import Meguri.Site.Yahuoku qualified as Yahuoku
 import Protolude
 import Meguri.Sites.Match (matchesItem)
 
-adapterFor :: SiteDef -> Adapter
+adapterFor :: Channel -> Adapter
 adapterFor s = case s.adapter of
   "rakuten" -> Rakuten.adapter
   "yahoo-shopping" -> YahooShopping.adapter
@@ -67,7 +67,7 @@ adapterFor s = case s.adapter of
 
 -- | 個別ページのURLの形から、サイトを引く。
 -- 支店（2nd STREET の楽天店など）は本店より形が細かいので、先に当たったものを優先する。
-siteForUrl :: Text -> Maybe SiteDef
+siteForUrl :: Text -> Maybe Channel
 siteForUrl u =
   let matches = filter (`matchesItem` u) catalog
       branch = filter (\s -> s.adapter /= s.sid) matches

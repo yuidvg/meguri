@@ -2,7 +2,7 @@
 -- （ヨドバシ・ヤマダ・ケーズデンキ・ニトリ・Amazon・メルカリ・2nd STREET・じゃんぱら・eBay）。
 --
 -- どれも HTTP では読めないサイト。エージェントがブラウザで開いて保存したHTMLを、
--- @meguri item <URL> --html <file>@ で渡す。
+-- @meguri search … --page <URL>=<file>@（1ページだけ読むなら @meguri item <URL> --html <file>@）で渡す。
 -- 保存したHTMLには、おすすめや閲覧履歴の枠が混ざる。主の商品の欄だけを、id や目印で指して読む。
 module Meguri.Site.Captured
   ( yodobashi

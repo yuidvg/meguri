@@ -25,7 +25,7 @@ module Meguri.Site.Store
 
 import Data.List (nubBy)
 import Data.Text qualified as T
-import Meguri.Catalog (SiteDef (..))
+import Meguri.Catalog (Channel (..))
 import Meguri.Extract.Html
 import Meguri.Extract.Price (parseShipping, parseYen)
 import Meguri.Sanitize (usableUrl)
@@ -217,7 +217,7 @@ defaultCards =
 -- カードは、ある個別ページへの最初のリンクから、次の別の個別ページへの最初のリンクの手前まで。
 -- サイトごとに fixture と golden で確かめてから使う。その店に無い語（0件）のページでも確かめる：
 -- 該当なしのページや検索結果の後ろに、おすすめ・ランキング・最近売れた商品の枠を並べるサイトがある。
-cards :: SiteDef -> CardOpts -> ListCtx -> Tags -> Text -> ListOut
+cards :: Channel -> CardOpts -> ListCtx -> Tags -> Text -> ListOut
 cards def o ctx page html =
   let region = o.regionId >>= \i -> head (subtrees (\t -> attr "id" t == Just i) page)
       ts = case o.regionId of

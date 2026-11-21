@@ -1,8 +1,12 @@
 module Main (main) where
 
-import Data.Aeson (ToJSON, Value, object, toJSON, (.=))
+import Data.Aeson (ToJSON, Value (Object), object, toJSON, (.=))
 import Data.Aeson.Encode.Pretty (Config (..), defConfig, encodePretty')
+import Data.Aeson (decodeStrict')
+import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString qualified as BS
+import Data.ByteString.Char8 qualified as BC
+import Data.Set qualified as Set
 import Data.ByteString.Lazy qualified as BL
 import Data.Text qualified as T
 import Hedgehog (forAll, property, (===))
@@ -18,15 +22,22 @@ import Meguri.Extract.Price
 import Meguri.Fetch.Encoding
 import Meguri.Fetch.Http (PageClass (..), classify)
 import Meguri.Item (extractItem)
-import Meguri.Rank (Frame (..), rank)
+import Meguri.Arrange (Frame (..), arrange)
 import Meguri.Recall qualified as Recall
 import Meguri.Ship (Pref (..), ShipPlan (..), parsePref, shipPlan)
 import Meguri.Fetch.Http (Req (..))
-import Meguri.Rank qualified as Rank
-import Meguri.Verify (changesBetween, changesFromListing)
-import Meguri.Render (candidateLine, coverageSummary, rankCandidates, sitesMd)
+import Meguri.Arrange qualified as Rank
+import Meguri.Judge (asker, commandInput, commandKept, jevAnswer, jevKeeps, jevRequest)
+import Meguri.Query (judgeByCommand, judgeByJev, maxPrice, minPrice, nameHas, nameLacks, ofSighting, seenRows)
+import Meguri.Scope (Scope (..), categoryHas, channelRows, channelsIn, only, skip, unknownChannels)
+import Meguri.Scope qualified as Scope
+import Meguri.Selection (Ask, Excluded (..), Selected (..), Selection (..), everything, select, sift)
+import Meguri.Search qualified as Search
+import Meguri.Report qualified as Report
+import Meguri.Read (Checked (..), Page (..), Unread (..), UnreadReason (..), cheapest, driftFrom, tracked)
+import Meguri.Render (sightingLine, coverageSummary, cheapestFirst, sitesMd)
 import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
-import Meguri.Search
+import Meguri.List
 import Meguri.Site.Common
 import Meguri.Site.Store (taxInclAmount, validEan13)
 import Meguri.Sites
@@ -52,6 +63,9 @@ main =
       , shipTests
       , capturedTests
       , storeTests
+      , scopeTests
+      , acceptTests
+      , searchTests
       , fetchTests
       , microdataTests
       , sanitizeTests
@@ -244,7 +258,7 @@ confirmTests =
   testGroup
     "確認済みかどうかの判定"
     [ testCase "7項目すべて読めたら confirmed" $ judge True full @?= Confirmed
-    , testCase "ブラウザで保存したHTMLでも confirmed" $ (toItemRecord FromCapture True draft).confirmation @?= Confirmed
+    , testCase "ブラウザで保存したHTMLでも confirmed" $ (toReading FromCapture True draft).confirmation @?= Confirmed
     , testCase "送料が読めなければ partial" $
         judge True full {shipping = missing (ItemPage Body) "無い"} @?= Partial ["送料"]
     , testCase "送料が「不明」でも partial" $
@@ -273,8 +287,8 @@ confirmTests =
       , image = got OpenGraph "https://example.test/1.jpg"
       , buy = got Body (BuyActive "カートに入れる")
       }
-  full :: Offer ItemSource
-  full = (toItemRecord FromHttp True draft).offer
+  full :: Offer OnPage
+  full = (toReading FromHttp True draft).offer
 
 -- | 保存したHTMLには、おすすめの枠が混ざる。主の商品の欄だけを読む
 capturedTests :: TestTree
@@ -329,6 +343,189 @@ capturedTests =
         let r = extractItem FromCapture "https://jp.mercari.com/item/m94254522440" stamp html
         r.offer.shipping.source @?= Captured Body
     ]
+
+-- | テスト用の候補（一覧の値）
+mkCand :: Text -> Text -> Text -> Int -> Sighting
+mkCand siteId url name price =
+  Sighting "WH-1000XM5" New ((emptyOffer SearchList siteId url stamp) {name = got SearchList name, priceIncl = got SearchList (Yen price), shipping = got SearchList Free})
+
+-- | テスト用の記録（個別ページで7項目すべて読めたもの）
+mkItem :: Text -> Text -> Int -> Reading
+mkItem url name price =
+  toReading
+    FromHttp
+    True
+    (emptyOffer Body "x" url stamp)
+      { name = got JsonLd name
+      , priceIncl = got JsonLd (Yen price)
+      , shipping = got Body Free
+      , stock = got JsonLd InStock
+      , seller = got Body "店"
+      , image = got OpenGraph "https://example.test/1.jpg"
+      , buy = got Body (BuyActive "カートに入れる")
+      }
+
+-- | 判定の頼み先（テスト用）：外のコマンドだけ。jev のキーは無い
+noJev :: Ask
+noJev = asker Nothing
+
+-- | どこを探すか：当たる販路を、カタログから選ぶ
+scopeTests :: TestTree
+scopeTests =
+  testGroup
+    "どこを（Scope）"
+    [ testCase "選び方が無ければ、カタログの全部に当たる" $ do
+        r <- channelsIn noJev ["x"] (scopeOf everything)
+        fmap (\c -> (length c.chosen, c.excluded)) r @?= Right (length catalog, [])
+    , testCase "条件を全部満たす販路に当たる。どれがいくつ外したかを数える" $ do
+        r <- channelsIn noJev ["x"] (scopeOf (Selection [categoryHas ["リユース", "フリマ"], skip ["hardoff"], only ["mercari", "bookoff", "rakuten"]] []))
+        let inCat = length [c | c <- catalog, c.category `elem` [Reuse, FleaAuction]]
+        fmap (\c -> (sort (map (.sid) c.chosen), c.excluded)) r
+          @?= Right (["bookoff", "mercari"], [Excluded "--category リユース,フリマ" (length catalog - inCat), Excluded "--skip hardoff" 1, Excluded "--only mercari,bookoff,rakuten" (inCat - 3)])
+    , testCase "条件の順を変えても、当たる販路は同じ" $ do
+        let cs = [categoryHas ["リユース", "フリマ"], skip ["hardoff"], only ["mercari", "bookoff", "rakuten"]]
+        a <- channelsIn noJev ["x"] (scopeOf (Selection cs []))
+        b <- channelsIn noJev ["x"] (scopeOf (Selection (reverse cs) []))
+        fmap (map (.sid) . (.chosen)) a @?= fmap (map (.sid) . (.chosen)) b
+    , testCase "カタログに無い id は、書きまちがいとして拾える" $
+        unknownChannels ["rakuten", "rakutem"] @?= ["rakutem"]
+    , testCase "判定に渡す行は、1販路1行の JSON（id・名前・区分・扱う種類・検索語）" $ do
+        let rows = channelRows ["WH-1000XM5"] (filter ((== "rakuten") . (.sid)) catalog)
+            field k = case map snd rows of
+              [Object o] -> KM.lookup k o
+              _ -> Nothing
+        map fst rows @?= ["rakuten"]
+        (field "id", field "category", field "terms") @?= (Just (toJSON ("rakuten" :: Text)), Just (toJSON ("大手モール" :: Text)), Just (toJSON ["WH-1000XM5" :: Text]))
+    , testCase "外のコマンドの出力：販路の id だけの行でも、id を持つ JSON でもよい" $
+        commandKept "rakuten\n\"mercari\"\n{\"id\":\"bookoff\"}\n{\"id\":\"hardoff\",\"keep\":false}\n" @?= Right (Set.fromList ["rakuten", "mercari", "bookoff"])
+    , testCase "外のコマンドに判定を任せる：当たると答えた販路だけが、検索の一覧に入る" $ do
+        r <- channelsIn noJev ["WH-1000XM5"] (scopeOf (Selection [] [Scope.judgeByCommand "grep -E '\"id\":\"(rakuten|mercari)\"'"]))
+        let todo = either (const []) (lookups ["WH-1000XM5"] [] . (.chosen)) r
+        ordNub (map (\l -> l.channel.sid) todo) @?= ["rakuten", "mercari"]
+        fmap (.excluded) r @?= Right [Excluded "--judge-channel-cmd grep -E '\"id\":\"(rakuten|mercari)\"'" (length catalog - 2)]
+    , testCase "判定が失敗したら、そこでやめる（全部に当たったことにしない）" $ do
+        r <- channelsIn noJev ["x"] (scopeOf (Selection [] [Scope.judgeByCommand "exit 3"]))
+        isLeft r @?= True
+    ]
+ where
+  scopeOf sel = Scope sel [] []
+
+-- | 何を探すか：見つけた売り物のうち、探している物と認める選び方
+acceptTests :: TestTree
+acceptTests =
+  testGroup
+    "何を（Query の accept）"
+    [ testCase "条件を全部満たすものを認める。どれがいくつ外したかを数える" $ do
+        let r = sift [minPrice 12000, nameHas "wh1000xm5", nameLacks "ケース"] ofSighting cs
+        map (\c -> c.offer.url) r.chosen @?= ["u1"]
+        r.excluded @?= [Excluded "--min-price 12000" 1, Excluded "--has wh1000xm5" 1, Excluded "--not ケース" 1]
+    , testCase "条件の順を変えても、認めるものは同じ（外す数の内訳だけが変わる）" $ do
+        let r = sift [nameLacks "ケース", nameHas "wh1000xm5", minPrice 12000] ofSighting cs
+        map (\c -> c.offer.url) r.chosen @?= ["u1"]
+        map (.count) r.excluded @?= [1, 1, 1]
+    , testCase "商品名は、大文字小文字・全角半角・空白・ハイフンの違いを無視して照らす" $
+        map (\c -> c.offer.url) (sift [nameHas "WH-1000XM5"] ofSighting cs).chosen @?= ["u1", "u2", "u4"]
+    , testCase "価格が分からないものは、価格の条件で外さない（個別ページで分かってから、もう一度かかる）" $ do
+        let unknown = Sighting "q" New (emptyOffer SearchList "x" "u9" stamp)
+        length (sift [minPrice 12000, maxPrice 50000] ofSighting [unknown]).chosen @?= 1
+    , testCase "外のコマンドの出力：id だけの行でも、id を持つ JSON でもよい。keep:false は外す" $
+        commandKept "3\n{\"id\":5,\"name\":\"x\"}\n{\"id\":7,\"keep\":false}\n\n" @?= Right (Set.fromList ["3", "5"])
+    , testCase "外のコマンドが何も出さなければ、全部外す" $ commandKept "" @?= Right Set.empty
+    , testCase "外のコマンドの出力が読めなければ、失敗にする（認めたことにしない）" $
+        isLeft (commandKept "これは付属品です\n") @?= True
+    , testCase "判定に渡す行は、1件1行の JSON（id・商品名・価格・URL など）" $ do
+        let ls = BC.lines (commandInput (map snd (seenRows (map ofSighting cs))))
+            field k l = KM.lookup k =<< (decodeStrict' l :: Maybe (KM.KeyMap Value))
+        length ls @?= 4
+        map (field "id") (take 2 ls) @?= [Just (toJSON (0 :: Int)), Just (toJSON (1 :: Int))]
+        (field "name" =<< head ls, field "price" =<< head ls, field "url" =<< head ls) @?= (Just (toJSON ("WH-1000XM5 本体" :: Text)), Just (toJSON (30000 :: Int)), Just (toJSON ("u1" :: Text)))
+    , testCase "外のコマンドに判定を任せる：受け取った行をそのまま返すコマンド（cat）は、全部認める" $ do
+        r <- select noJev seenRows (Selection [] [judgeByCommand "cat"]) ofSighting cs
+        fmap (\x -> (length x.chosen, x.excluded)) r @?= Right (4, [Excluded "--judge-cmd cat" 0])
+    , testCase "条件を先に、判定を後にかける（書いた順によらない）" $ do
+        r <- select noJev seenRows (Selection [minPrice 12000, nameLacks "本体"] [judgeByCommand "head -n 1"]) ofSighting cs
+        fmap (\x -> (map (\c -> c.offer.url) x.chosen, map (.count) x.excluded)) r @?= Right (["u3"], [1, 1, 1])
+    , testCase "判定が失敗したら、そこでやめる" $ do
+        r <- select noJev seenRows (Selection [] [judgeByCommand "exit 3"]) ofSighting cs
+        isLeft r @?= True
+    , testCase "jev への頼み：行（id を除く）が状態、質問は はい／いいえ が1つ" $ do
+        let row = object ["id" .= (7 :: Int), "name" .= ("WH-1000XM5 ケース" :: Text)]
+        jevRequest "typesafe/jev-1.14" "本体か" row
+          @?= object
+            [ "model" .= ("typesafe/jev-1.14" :: Text)
+            , "state" .= object ["name" .= ("WH-1000XM5 ケース" :: Text)]
+            , "questions" .= object ["keep" .= object ["type" .= ("noul" :: Text), "instructions" .= ("本体か" :: Text)]]
+            ]
+    , testCase "jev の答え：「はい」の確率を読む。0.5 以上なら認める" $ do
+        let yes = jevAnswer "{\"id\":\"gen-dec-1\",\"answers\":{\"keep\":{\"type\":\"noul\",\"noul\":0.96}},\"usage\":{\"input_tokens\":120}}"
+            no = jevAnswer "{\"answers\":{\"keep\":{\"type\":\"noul\",\"noul\":0.04}}}"
+        (yes, no) @?= (Right 0.96, Right 0.04)
+        (fmap jevKeeps yes, fmap jevKeeps no) @?= (Right True, Right False)
+    , testCase "jev が断ったとき・答えが読めないときは、失敗にする（認めたことにも外したことにもしない）" $ do
+        isLeft (jevAnswer "{\"answers\":{\"keep\":{\"type\":\"refusal\"}}}") @?= True
+        jevAnswer "{\"error\":{\"message\":\"Insufficient credits\",\"code\":402}}" @?= Left "jev の答えを読めなかった：Insufficient credits"
+        isLeft (jevAnswer "<html>") @?= True
+    , testCase "jev のキーが無ければ、判定は失敗する（黙って全部認めない）" $ do
+        r <- select noJev seenRows (Selection [] [judgeByJev "本体か"]) ofSighting cs
+        isLeft r @?= True
+    ]
+ where
+  cs =
+    [ mkCand "x" "u1" "WH-1000XM5 本体" 30000
+    , mkCand "x" "u2" "WH-1000XM5 用 イヤーパッド" 1500
+    , mkCand "x" "u3" "WH-1000XM4" 20000
+    , mkCand "x" "u4" "ｗｈ－１０００ｘｍ５ ケース" 15000
+    ]
+
+-- | search の中身：読むページの選び方と、結果のまとめ（純粋な部分）
+searchTests :: TestTree
+searchTests =
+  testGroup
+    "search（何を → どこを → 結果）"
+    [ testCase "読むページ：販路と新品・中古の組ごとに、安い順で N 件。同じURLは1つに数える" $ do
+        let xs = [mkCand "a" "u1" "n" 300, mkCand "a" "u2" "n" 100, mkCand "a" "u3" "n" 200, mkCand "b" "u4" "n" 50, mkCand "a" "u2" "n" 100]
+        map (.url) (cheapest 2 xs) @?= ["u4", "u2", "u3"]
+        map (.url) (cheapest 0 xs) @?= []
+    , testCase "価格.com の転送URL（アフィリエイトの中継）は、取りに行かない" $
+        map tracked ["https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1", "https://kakaku.com/ksearch/jump/?u=x", "https://kakaku.com/item/K0001654211/"] @?= [True, True, False]
+    , testCase "まとめ：読めたものが先。読めなかったものは一覧の値のまま残る。個別ページの値で条件に合わなければ外す" $ do
+        map (\e -> (e.url, e.fromPage, e.confirmation)) res.findings
+          @?= [("https://example.test/1", True, Confirmed), ("https://example.test/3", False, Unconfirmed), ("https://example.test/4", False, Unconfirmed)]
+        res.rechecked @?= [Excluded "--min-price 12000" 1]
+    , testCase "一覧の値からの変化は、その1件の注記に入る" $
+        concatMap (.notes) (filter (.fromPage) res.findings) @?= ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
+    , testCase "名指しのページ（--url・--page）は、選び方で外さない" $ do
+        let page = Page "https://example.test/9" Nothing Nothing
+            r = Search.assemble accept (Selected [] []) (Selected [] []) ([Checked page (mkItem "https://example.test/9" "付属品" 500) []], []) [] []
+        map (.url) r.findings @?= ["https://example.test/9"]
+    , testCase "表：読んだものに、支払額・税込価格・送料・在庫・販売者・読んだ時刻が並ぶ" $ do
+        let t = Report.table 3 15 res
+            has part = assertBool (toS ("表に無い：" <> part <> "\n" <> t)) (part `T.isInfixOf` t)
+        has "確かめた候補1件：確認済み1・一部0"
+        has "確認済み\tx\t¥20,000\t¥20,000\t送料無料\t在庫あり\t-\t店\t11/20 23:00\tWH-1000XM5\thttps://example.test/1\t価格 ¥20,500→¥20,000"
+        has "ブラウザで開く：保存したHTMLが要る\tx\t¥21,500"
+        has "何を：一覧で見かけた4件 → --min-price 12000 で0件を外す → 4件。個別ページの値では、--min-price 12000 で1件を外した"
+        has ("どこを：カタログの全" <> show (length catalog) <> "販路")
+    , testCase "JSON Lines：読んだもの・読めなかったもの・集計の順。どの行にも schema が付く" $ do
+        let ls = Report.jsonLines res
+            schema l = KM.lookup "schema" =<< (decodeStrict' l :: Maybe (KM.KeyMap Value))
+        map schema ls @?= map (Just . toJSON) (["meguri.result/1", "meguri.unread/1", "meguri.summary/1"] :: [Text])
+    , testCase "個別ページを読まないとき（--read 0）は、一覧で見かけたものを出す" $ do
+        let t = Report.table 0 15 (Search.assemble everything (Selected [] []) (Selected cs []) ([], []) [] cs)
+        T.isInfixOf "候補（未確認）4件" t @?= True
+        T.isInfixOf "個別ページは読んでいない" t @?= True
+    ]
+ where
+  accept = Selection [minPrice 12000] []
+  cs = [mkCand "x" ("https://example.test/" <> show n) "WH-1000XM5" (20000 + n * 500) | n <- [1 .. 4 :: Int]]
+  page :: Int -> Page
+  page n = Page ("https://example.test/" <> show n) Nothing (find (\c -> c.offer.url == "https://example.test/" <> show n) cs)
+  checked =
+    [ Checked (page 1) (mkItem "https://example.test/1" "WH-1000XM5" 20000) ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
+    , Checked (page 2) (mkItem "https://example.test/2" "WH-1000XM5" 9000) []
+    ]
+  unread = [Unread (page 3) (OpenInBrowser "保存したHTMLが要る")]
+  res = Search.assemble accept (Selected catalog []) (Selected cs [Excluded "--min-price 12000" 0]) (checked, unread) [] cs
 
 -- | 一覧の fixture を、そのサイトのアダプタで読む
 listOf :: Text -> FilePath -> Text -> Int -> IO ListOut
@@ -430,32 +627,29 @@ rankTests =
     , testCase "売り切れは「いまは買えない」" $
         Rank.classify False (listed "u1" 1000) {stock = got SearchList Sold} @?= Gone
     , testCase "同じURLは、個別ページの記録を残す" $ do
-        let es = rank [confirmedItem "https://example.test/1" 1500 InStock Nothing] [cand "https://example.test/1" 1000 Nothing]
+        let es = arrange [confirmedItem "https://example.test/1" 1500 InStock Nothing] [cand "https://example.test/1" 1000 Nothing]
         map (\e -> (e.url, e.confirmation, e.priceIncl)) es @?= [("https://example.test/1", Confirmed, Just (Yen 1500))]
     , testCase "一覧の候補は、安くても確認済みより後ろ。判定は未確認のまま" $ do
-        let es = rank [confirmedItem "https://example.test/1" 1500 InStock Nothing] [cand "https://example.test/2" 1000 Nothing]
+        let es = arrange [confirmedItem "https://example.test/1" 1500 InStock Nothing] [cand "https://example.test/2" 1000 Nothing]
         map (\e -> (e.url, e.confirmation)) es @?= [("https://example.test/1", Confirmed), ("https://example.test/2", Unconfirmed)]
     , testCase "同じ在庫は1つにして、確認済みの方を残す" $ do
-        let es = rank [confirmedItem "https://example.test/1" 1500 InStock (Just "z1")] [cand "https://example.test/2" 1000 (Just "z1")]
+        let es = arrange [confirmedItem "https://example.test/1" 1500 InStock (Just "z1")] [cand "https://example.test/2" 1000 (Just "z1")]
         map (\e -> (e.url, e.duplicates)) es @?= [("https://example.test/1", ["https://example.test/2"])]
     , testCase "一覧と個別ページで価格が違えば、変化として出す" $
-        changesFromListing (cand "https://example.test/1" 1000 Nothing) (confirmedItem "https://example.test/1" 1500 InStock Nothing)
+        driftFrom (cand "https://example.test/1" 1000 Nothing) (confirmedItem "https://example.test/1" 1500 InStock Nothing)
           @?= ["価格 ¥1,000→¥1,500（一覧→個別ページ）"]
-    , testCase "前回は販売中、今回は売却済み" $ do
-        changesBetween (confirmedItem "https://example.test/1" 1500 InStock Nothing) (confirmedItem "https://example.test/1" 1500 Sold Nothing)
-          @?= ["在庫 在庫あり→売却済み"]
-    , testCase "同じなら変化なし" $
-        changesBetween (confirmedItem "https://example.test/1" 1500 InStock Nothing) (confirmedItem "https://example.test/1" 1500 InStock Nothing) @?= []
+    , testCase "一覧と個別ページで同じなら、変化なし" $
+        driftFrom (cand "https://example.test/1" 1500 Nothing) (confirmedItem "https://example.test/1" 1500 InStock Nothing) @?= []
     ]
  where
-  listed :: Text -> Int -> Offer ListSource
+  listed :: Text -> Int -> Offer OnList
   listed = listedAt "x"
-  listedAt :: Text -> Text -> Int -> Offer ListSource
+  listedAt :: Text -> Text -> Int -> Offer OnList
   listedAt s u p = (emptyOffer SearchList s u stamp) {name = got SearchList "WH-1000XM5", priceIncl = got SearchList (Yen p), shipping = got SearchList Free}
-  cand u p shared = Candidate "q" New ((listed u p) {keys = noKeys {sharedStockId = shared}})
-  confirmedItem :: Text -> Int -> Stock -> Maybe Text -> ItemRecord
+  cand u p shared = Sighting "q" New ((listed u p) {keys = noKeys {sharedStockId = shared}})
+  confirmedItem :: Text -> Int -> Stock -> Maybe Text -> Reading
   confirmedItem u p st shared =
-    toItemRecord
+    toReading
       FromHttp
       True
       (emptyOffer Body "x" u stamp)
@@ -522,14 +716,14 @@ sanitizeTests =
         map publicUrl ["https://item.rakuten.co.jp/a/b/", "http://localhost:8080/", "http://127.0.0.1/", "http://169.254.169.254/latest/", "http://[::1]/", "http://printer.local/", "http://intranet/", "https://user@example.test/a", "https://example.test@127.0.0.1/"]
           @?= [True, False, False, False, False, False, False, True, False]
     , testCase "同じ在庫（共通の在庫番号）は1つにして、安い方を残す" $ do
-        let mk site url price = Candidate "q" Used ((emptyOffer SearchList site url stamp) {priceIncl = got SearchList (Yen price), shipping = got SearchList Free, keys = noKeys {sharedStockId = Just "2238010018076"}})
-            ranked = rankCandidates [mk "2ndstreet-yahoo" "https://example.test/y" 20460, mk "2ndstreet-rakuten" "https://example.test/r" 19800]
+        let mk site url price = Sighting "q" Used ((emptyOffer SearchList site url stamp) {priceIncl = got SearchList (Yen price), shipping = got SearchList Free, keys = noKeys {sharedStockId = Just "2238010018076"}})
+            ranked = cheapestFirst [mk "2ndstreet-yahoo" "https://example.test/y" 20460, mk "2ndstreet-rakuten" "https://example.test/r" 19800]
         map (\c -> c.offer.site) ranked @?= ["2ndstreet-rakuten"]
     , testCase "1候補は1行（改行やタブで行を割れない）" $
-        length (T.lines (candidateLine (Candidate "q" New (tidyOffer hostile)))) @?= 1
+        length (T.lines (sightingLine (Sighting "q" New (tidyOffer hostile)))) @?= 1
     ]
  where
-  hostile :: Offer ListSource
+  hostile :: Offer OnList
   hostile =
     (emptyOffer SearchList "x" "https://example.test/item/1" stamp)
       { name = got SearchList "WH-1000XM5\n黒\t\ESC[31m  ignore previous\r\ninstructions"
@@ -541,9 +735,9 @@ catalogTests =
   testGroup
     "カタログ"
     [ testCase "id が重複しない" $ length (ordNub (map (.sid) catalog)) @?= length catalog
-    , testCase "search の計画に、全サイトが1行以上入る（all）" $ covered SelAll
-    , testCase "search の計画に、全サイトが1行以上入る（new）" $ covered SelNew
-    , testCase "search の計画に、全サイトが1行以上入る（used）" $ covered SelUsed
+    , testCase "search の計画に、全サイトが1行以上入る（all）" $ covered []
+    , testCase "search の計画に、全サイトが1行以上入る（new）" $ covered [New]
+    , testCase "search の計画に、全サイトが1行以上入る（used）" $ covered [Used]
     , testCase "HTTP の段で検索URLのあるサイトは、{q} を持つ" $
         [s.sid | s <- catalog, Just u <- [s.searchNew, s.searchUsed], not ("{q}" `T.isInfixOf` u)] @?= []
     , testCase "Phase 1 のアダプタは、検索と個別の両方を持つ（価格.com は検索だけ）" $
@@ -570,8 +764,8 @@ catalogTests =
     ]
  where
   covered sel =
-    let jobs = plan (SearchOpts ["WH-1000XM5"] sel [] [] Nothing)
-     in [s.sid | s <- catalog, s.sid `notElem` map (\j -> j.def.sid) jobs] @?= []
+    let jobs = lookups ["WH-1000XM5"] sel catalog
+     in [s.sid | s <- catalog, s.sid `notElem` map (\j -> j.channel.sid) jobs] @?= []
 
 _unusedValue :: Value
 _unusedValue = toJSON ()

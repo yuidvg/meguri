@@ -3,7 +3,7 @@
 -- docs/channels.md は @meguri sites --format md@ で、ここから作る。
 -- 注記（hints）は、確かめた日（checked）に実際に開いて分かったことで、決まった手順ではない。
 module Meguri.Catalog
-  ( SiteDef (..)
+  ( Channel (..)
   , Category (..)
   , SiteKind (..)
   , Tier (..)
@@ -93,7 +93,7 @@ tierLabel = \case
 data Enc = Utf8 | ShiftJis | Cp932 | EucJp
   deriving stock (Eq, Show)
 
-data SiteDef = SiteDef
+data Channel = Channel
   { sid :: Text
   , label :: Text
   , category :: Category
@@ -124,9 +124,9 @@ data SiteDef = SiteDef
 d1120 :: Day
 d1120 = fromGregorian 2026 11 20
 
-site :: Text -> Text -> Category -> [SiteKind] -> Tier -> SiteDef
+site :: Text -> Text -> Category -> [SiteKind] -> Tier -> Channel
 site sid label category kinds tier =
-  SiteDef
+  Channel
     { sid
     , label
     , category
@@ -145,14 +145,14 @@ site sid label category kinds tier =
     , home = Nothing
     }
 
-lookupSite :: Text -> Maybe SiteDef
+lookupSite :: Text -> Maybe Channel
 lookupSite i = find ((== i) . (.sid)) catalog
 
 -- | channels.md の「一覧から外したもの」
 excludedNote :: Text
 excludedNote = "インテリアズー、ルカリカ、エコリン村、ドンドンダウン：いまの通販のURLを特定できなかった（ルカリカのドメインは売りに出ている）。"
 
-catalog :: [SiteDef]
+catalog :: [Channel]
 catalog = map withSamples entries
  where
   withSamples s =
@@ -201,7 +201,7 @@ homes =
   , ("dcm", "https://www.dcm-ekurashi.com/")
   ]
 
-entries :: [SiteDef]
+entries :: [Channel]
 entries =
   -- 価格比較 ---------------------------------------------------------------
   [ (site "kakaku" "価格.com" PriceComparison [KNew] Http)
