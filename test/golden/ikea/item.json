@@ -1,0 +1,113 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "contents": [
+            "送料",
+            "購入の入口"
+        ],
+        "tag": "Partial"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": "カートのボタンはJSで描画される（ブラウザで確かめる）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "condition": {
+            "note": null,
+            "raw": "https://schema.org/NewCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "新品"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "https://www.ikea.com/jp/ja/images/products/kuddarna-chair-cushion-outdoor-light-grey-beige__1458347_pe992998_s5.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": "805.472.23",
+            "sharedStockId": null,
+            "siteItemId": "805.472.23"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "KUDDARNA クッダルナ シートクッション 屋外用 - ライトグレーベージュ 36x32 cm"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "本文の税込の表示と同じ額",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": 500
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "IKEA"
+        },
+        "shipping": {
+            "note": "郵便番号を入れないと出ない（ブラウザで確かめる）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "site": "ikea",
+        "stock": {
+            "note": null,
+            "raw": "https://schema.org/InStock",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://www.ikea.com/jp/ja/p/kuddarna-chair-cushion-outdoor-light-grey-beige-80547223/"
+    }
+}

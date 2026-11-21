@@ -1,0 +1,114 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": "問い合わせにはログインが要る",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "投稿者にメールで問い合わせ",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "https://cdn.jmty.jp/articles/images/6b0054948c152375f7dfa7cd/slide_1795183763733.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "1tcsaa"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "Bluetooth ヘッドホン ③"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": 100
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "投稿者A"
+        },
+        "shipping": {
+            "note": "受け渡し場所：東京都八王子市堀之内",
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "BuyerPays"
+            }
+        },
+        "site": "jmty",
+        "stock": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "Selling"
+            }
+        },
+        "url": "https://jmty.jp/tokyo/sale-ele/article-1tcsaa"
+    }
+}

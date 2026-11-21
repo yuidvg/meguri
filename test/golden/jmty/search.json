@@ -1,0 +1,291 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn.jmty.jp/articles/images/6b0054948c152375f7dfa7cd/thumb_m_1795183763733.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1tcsaa"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "Bluetooth ヘッドホン ③"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": "100円",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 100
+            },
+            "seller": {
+                "note": "一覧に投稿者名なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "手渡しが基本（東京）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "BuyerPays"
+                }
+            },
+            "site": "jmty",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://jmty.jp/tokyo/sale-ele/article-1tcsaa"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn.jmty.jp/articles/images/68ea413aa703513e6cb79126/thumb_m_file.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1kei59"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ヤマハ電子ドラム DTX502フルセット"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": "100,000円",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 100000
+            },
+            "seller": {
+                "note": "一覧に投稿者名なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "手渡しが基本（神奈川）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "BuyerPays"
+                }
+            },
+            "site": "jmty",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://jmty.jp/kanagawa/sale-inc/article-1kei59"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://cdn.jmty.jp/articles/images/6b005370df2e5910403cda73/thumb_m_1795183472392.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1tcs7j"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "Bluetooth ヘッドホン ②"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": "200円",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 200
+            },
+            "seller": {
+                "note": "一覧に投稿者名なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "手渡しが基本（東京）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "BuyerPays"
+                }
+            },
+            "site": "jmty",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://jmty.jp/tokyo/sale-ele/article-1tcs7j"
+        }
+    ],
+    "zero": false
+}

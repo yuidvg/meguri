@@ -1,0 +1,295 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "USED40"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0211/user/8f41d0b43329c27514c76b987231fd9de950f17b191751cf252f69be5204891e/i-img559x558-179497275792526qlrvp38.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "f1252794818"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY WH-1000XM5 ブラック ヘッドホン ソニー"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 750
+            },
+            "seller": {
+                "note": "出品者名は一覧では伏せ字",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "一覧の表示は 1490円（配送先で変わる）",
+                "raw": "1490",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "yahuoku",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "bids": 21,
+                    "endsAt": "2026-11-21T21:32:38+09:00",
+                    "tag": "Auction"
+                }
+            },
+            "url": "https://auctions.yahoo.co.jp/jp/auction/f1252794818"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "USED10"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0203/user/f0df483de6795d9c20a11e0551b0cd4302bdf692d084efa13fb1175070b65c25/i-img569x490-17739917087461pcglzh197.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "c1223630555"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "Sony WH-1000XM5 (WH1000XM5) 専用 涼しく快適 冷却ジェル付きヘッドホン用交換イヤーパッド ノイズキャンセリングフォーム 柔らかいレザー"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "即決 1167円",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 1167
+            },
+            "seller": {
+                "note": "出品者名は一覧では伏せ字",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "yahuoku",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://auctions.yahoo.co.jp/jp/auction/c1223630555"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "USED60"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0211/user/06eef20ea16a0a57fb314944718e7c403550d6f35f45c8ce10180d0f78b76546/i-img1200x1200-17951690177036q9kw2f510.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "s1253111827"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "（a347）簡易動作確認済み SONY WH-1000XM5 ワイヤレスヘッドホン ブラック ソニー ワイヤレス ヘッドホン"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 1700
+            },
+            "seller": {
+                "note": "出品者名は一覧では伏せ字",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "一覧の表示は 750円（配送先で変わる）",
+                "raw": "750",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "yahuoku",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "bids": 6,
+                    "endsAt": "2026-11-22T18:04:28+09:00",
+                    "tag": "Auction"
+                }
+            },
+            "url": "https://auctions.yahoo.co.jp/jp/auction/s1253111827"
+        }
+    ],
+    "zero": false
+}

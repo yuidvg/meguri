@@ -1,0 +1,99 @@
+{
+    "follow": [
+        "https://kakaku.com/item/J0000038619/"
+    ],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": "画像なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5",
+                "sharedStockId": null,
+                "siteItemId": "J0000038619"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY WH-1000XM5"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "価格.com の最安値",
+                "raw": "31,799～",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 31799
+            },
+            "seller": {
+                "note": "価格.com の製品ページ（店は未確認）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "店ごとに違う（ショップ一覧で見る）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://kakaku.com/item/J0000038619/"
+        }
+    ],
+    "zero": false
+}

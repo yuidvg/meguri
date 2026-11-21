@@ -1,0 +1,118 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "contents": [
+            "送料"
+        ],
+        "tag": "Partial"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": "https://schema.org/UsedCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "中古"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "https://content.bookoff.co.jp/goodsimages/LL/001265/0012651925LL.jpg"
+        },
+        "keys": {
+            "jan": "9784906496310",
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "0012651925"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "プチ生活保護のススメ 我が家にも公的資金を！"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "説明文の「円(税込)」と一致",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": 79
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "ブックオフ オンライン"
+        },
+        "shipping": {
+            "note": null,
+            "raw": "1,800円以上のご注文で送料無料",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "1,800円以上のご注文で送料無料（未満の送料はご利用ガイドで確かめる）",
+                "tag": "ShipUnknown"
+            }
+        },
+        "site": "bookoff",
+        "stock": {
+            "note": null,
+            "raw": "https://schema.org/InStock",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://shopping.bookoff.co.jp/used/0012651925"
+    }
+}

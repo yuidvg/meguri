@@ -1,0 +1,114 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": "http://schema.org/UsedCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "中古"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "https://ec.treasure-f.com/images/2503005450576041/1500/2503005450576041_01_4454w.jpeg"
+        },
+        "keys": {
+            "jan": null,
+            "model": "2503005450576041",
+            "sharedStockId": null,
+            "siteItemId": "2503005450576041"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "SONY (ソニー) PS4ヘッドセット CUHJ-15005 -"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "JSON-LD の価格は税抜",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": 2500
+        },
+        "priceIncl": {
+            "note": "本文の大きい表示（税込）",
+            "raw": "￥2,750",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": 2750
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "トレジャーファクトリー郡山安積店"
+        },
+        "shipping": {
+            "note": "都道府県ごと。/item/postage?code={商品番号}&prefId={都道府県コード} で取れる",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "ByDestination"
+            }
+        },
+        "site": "treasure-factory",
+        "stock": {
+            "note": null,
+            "raw": "http://schema.org/InStock",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://ec.treasure-f.com/item/2503005450576041"
+    }
+}

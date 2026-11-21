@@ -1,0 +1,114 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "EmbeddedJson",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "かごに追加",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "EmbeddedJson",
+                "tag": "ItemPage"
+            },
+            "value": "good"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Microdata",
+                "tag": "ItemPage"
+            },
+            "value": "https://tshop.r10s.jp/jumblestore/cabinet/18076/2238010018076-07.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": "2238010018076",
+            "siteItemId": "jumblestore:2238010018076"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Microdata",
+                "tag": "ItemPage"
+            },
+            "value": "【中古】SONY◆ヘッドホン WH-1000XM5//【家電・ビジュアル・オーディオ】"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "税込で表示",
+            "raw": null,
+            "source": {
+                "contents": "Microdata",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Microdata",
+                "tag": "ItemPage"
+            },
+            "value": 20460
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "EmbeddedJson",
+                "tag": "ItemPage"
+            },
+            "value": "2ｎｄ STREET 楽天市場店"
+        },
+        "shipping": {
+            "note": null,
+            "raw": "postageIncluded:true",
+            "source": {
+                "contents": "EmbeddedJson",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "Free"
+            }
+        },
+        "site": "2ndstreet-rakuten",
+        "stock": {
+            "note": null,
+            "raw": "http://schema.org/InStock",
+            "source": {
+                "contents": "Microdata",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://item.rakuten.co.jp/jumblestore/2238010018076/"
+    }
+}

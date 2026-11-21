@@ -1,0 +1,115 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "カートに入れる",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "新品"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "https://d27ea4kkb8flj9.cloudfront.net/224665_1_L.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": null
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "ガラスフィルム for iPhone13 mini"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "本文の税込の表示と同じ額",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": 200
+        },
+        "seller": {
+            "note": "直販（販売者は店そのもの）",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "イオシス"
+        },
+        "shipping": {
+            "note": "パソコン・モニタが含まれると別途かかる",
+            "raw": "基本送料",
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": 640,
+                "tag": "Fixed"
+            }
+        },
+        "site": "iosys",
+        "stock": {
+            "note": null,
+            "raw": "https://schema.org/InStock",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "InStock"
+            }
+        },
+        "url": "https://iosys.co.jp/items/smartphonegoods/other/%E3%82%AC%E3%83%A9%E3%82%B9%E3%83%95%E3%82%A3%E3%83%AB%E3%83%A0_for_iphone13_mini/224665"
+    }
+}

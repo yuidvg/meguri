@@ -1,0 +1,291 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://ec.treasure-f.com/images/2503005450576041/1500/2503005450576041_01_4454w.jpeg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "2503005450576041"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY (ソニー) PS4ヘッドセット CUHJ-15005 -"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 2750
+            },
+            "seller": {
+                "note": "一覧に出品店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "treasure-factory",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://ec.treasure-f.com/item/2503005450576041"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://ec.treasure-f.com/images/1030014102772035/1500/1030014102772035_01_1352w.jpeg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1030014102772035"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "steelseries (スティールシリーズ) ゲーミングヘッドセット　Arctis 5"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 2750
+            },
+            "seller": {
+                "note": "一覧に出品店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "treasure-factory",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://ec.treasure-f.com/item/1030014102772035"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://ec.treasure-f.com/images/1027009793718031/1500/1027009793718031_01_1597w.jpeg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1027009793718031"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "集音器"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 2750
+            },
+            "seller": {
+                "note": "一覧に出品店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "treasure-factory",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://ec.treasure-f.com/item/1027009793718031"
+        }
+    ],
+    "zero": false
+}

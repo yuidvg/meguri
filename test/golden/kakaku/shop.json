@@ -1,0 +1,750 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 0
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 31799
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ディーライズ"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "http://www.d-rise.jp/product/p000000888812/?media=kakaku"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 318
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 31800
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "XPRICE"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://www.xprice.co.jp/d.php?id=300000153660501&status=1"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 306
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 33679
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "楽天市場[rakuten]"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=2930&PrdKey=K0001654211&Url=https%3a%2f%2fhb.afl.rakuten.co.jp%2fichiba%2fg0000013.q3mr0277.g0000013.q3mr18d3%2f%3fpc%3dhttps%253A%252F%252Fproduct.rakuten.co.jp%252Fproduct%252F-%252F4194862faf3a048dcdc937a217208484%252F%26m%3dhttp%253A%252F%252Fm.product.rakuten.co.jp%252Fproduct%252F4194862faf3a048dcdc937a217208484%252F%26rafcid%3dwsc_i_ps_d08561f1-9827-4881-9176-59dc882eb2a8&Hash=230282c76fbc7c8dca2d73035c254564"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 336
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 33575
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "Amazon.co.jp"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1208&PrdKey=K0001654211&Url=https%3a%2f%2fkakaku.com%2fpt%2fard.asp%3furl%3dhttps%253a%252f%252fwww.amazon.co.jp%252fdp%252fB0DGKYNLWF%252fref%253dasc_df_B0DGKYNLWF1795140000000%253ftag%253dkakaku-subtag-22%2526linkCode%253ddf0%2526ascsubtag%253dkakaku-pc-kaden-22_B0DGKYNLWF_K0001654211_453%2526me%253dAI1TEH6Z565RE&Hash=84c966326e8ae2e25761406ee8773ff6"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 0
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 43160
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ヤマダウェブコム"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1865&PrdKey=K0001654211&Url=https%3a%2f%2fck.jp.ap.valuecommerce.com%2fservlet%2freferral%3fsid%3d36997%26pid%3d881884995%26vc_url%3dhttps%3a%2f%2fwww.yamada-denkiweb.com%2f1593632012%2f%3faf%3dkcvc&Hash=1f8a15889a5d49a576f320752e72b4e0"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 0
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 43160
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "コジマネット"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1925&PrdKey=K0001654211&Url=https%3a%2f%2fclick.linksynergy.com%2ffs-bin%2fclick%3fid%3d%2fVv6e0WKODg%26subid%3d0%26offerid%3d139701.1%26type%3d10%26tmpid%3d2284%26RD_PARM1%3dhttps%25253A%25252F%25252Fwww.kojima.net%25252Fec%25252Fprod_detail.html%25253Fprod%25253D4548736163560%252526sku%25253D4548736163560%252526utm_source%25253Daffiliate%252526utm_medium%25253Dcpa%252526utm_campaign%25253Daff_01_kakaku%252526argument%25253DHk5pL55q%252526dmai%25253Daf_01_kakaku&Hash=e166e61b7005e7de7e84e251509edc0c"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 0
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 43160
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ケーズデンキWEB"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1733&PrdKey=K0001654211&Url=http%3a%2f%2fck.jp.ap.valuecommerce.com%2fservlet%2freferral%3fsid%3d36997%26pid%3d877232732%26vc_url%3dhttps%253A%252F%252Fwww%252Eksdenki%252Ecom%252Fitem%253Fsku%3d4548736163560%26vcptn%3dkcvc%26utm_source%3daff%26utm_medium%3daffiliate%26utm_content%3dtxt%26utm_campaign%3dkakakucom&Hash=3c5123bbd02ac0b965458f8805e4bb91"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://img1.kakaku.k-img.com/images/productimage/fullscale/K0001654211.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM5 (P) [スモーキーピンク]",
+                "sharedStockId": null,
+                "siteItemId": "K0001654211"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "WH-1000XM5 (P) [スモーキーピンク]"
+            },
+            "points": {
+                "note": "価格.com の表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 2158
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 43160
+            },
+            "seller": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ノジマオンライン"
+            },
+            "shipping": {
+                "note": null,
+                "raw": "shpshp:0",
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "kakaku",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://c.kakaku.com/forwarder/forward.aspx?ShopCD=1639&PrdKey=K0001654211&Url=http%3a%2f%2fck.jp.ap.valuecommerce.com%2fservlet%2freferral%3fsid%3d36997%26pid%3d884213555%26vc_url%3dhttps%253A%252F%252Fonline.nojima.co.jp%252Fcommodity%252F1%252F4548736163560%252F%253Futm_source%253Dkakakucom%2526utm_medium%253Daffiliate&Hash=2267bbaa3feb3a00cae1414608268a3e"
+        }
+    ],
+    "zero": false
+}

@@ -1,0 +1,116 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "入札する",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "やや傷や汚れあり"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "https://auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0211/user/8f41d0b43329c27514c76b987231fd9de950f17b191751cf252f69be5204891e/i-img559x558-179497275792526qlrvp38.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": null,
+            "siteItemId": "f1252794818"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "SONY WH-1000XM5 ブラック ヘッドホン ソニー"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "現在価格。落札できた場合の額",
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": 750
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": "abc********"
+        },
+        "shipping": {
+            "note": "落札者負担。おてがる配送宅急便（額は配送先で変わる）",
+            "raw": "chargeForShipping:winner",
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "ByDestination"
+            }
+        },
+        "site": "yahuoku",
+        "stock": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "bids": 21,
+                "endsAt": "2026-11-21T21:32:38+09:00",
+                "tag": "Auction"
+            }
+        },
+        "url": "https://auctions.yahoo.co.jp/jp/auction/f1252794818"
+    }
+}

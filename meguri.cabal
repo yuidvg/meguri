@@ -1,0 +1,130 @@
+cabal-version:      3.0
+name:               meguri
+version:            0.1.0
+synopsis:           購入調査の決まった作業を受け持つ CLI
+license:            MIT
+author:             Yui Nishimura
+build-type:         Simple
+extra-source-files:
+  test/fixtures/**/*.html
+  test/fixtures/**/*.json
+  test/golden/**/*.json
+
+common shared
+  default-language:   GHC2021
+  default-extensions:
+    DataKinds
+    TupleSections
+    DeriveAnyClass
+    DerivingStrategies
+    DuplicateRecordFields
+    LambdaCase
+    MultiWayIf
+    NoFieldSelectors
+    NoImplicitPrelude
+    OverloadedRecordDot
+    OverloadedStrings
+    RecordWildCards
+  ghc-options:        -Wall -Wno-name-shadowing
+  build-depends:
+    , aeson
+    , base        >=4.14 && <5
+    , bytestring
+    , containers
+    , protolude
+    , text
+    , time
+
+library
+  import:          shared
+  hs-source-dirs:  src
+  exposed-modules:
+    Meguri.Catalog
+    Meguri.Catalog.Health
+    Meguri.Check
+    Meguri.Confirm
+    Meguri.Extract.Generic
+    Meguri.Extract.Html
+    Meguri.Extract.JsonLd
+    Meguri.Extract.Microdata
+    Meguri.Extract.NextData
+    Meguri.Extract.OpenGraph
+    Meguri.Extract.Price
+    Meguri.Fetch.Cache
+    Meguri.Fetch.Encoding
+    Meguri.Fetch.Http
+    Meguri.Health
+    Meguri.Item
+    Meguri.Rank
+    Meguri.Recall
+    Meguri.Render
+    Meguri.Run
+    Meguri.Sanitize
+    Meguri.Search
+    Meguri.Ship
+    Meguri.Site.BookOff
+    Meguri.Site.Captured
+    Meguri.Site.Common
+    Meguri.Site.DirectStores
+    Meguri.Site.HardOff
+    Meguri.Site.Jmty
+    Meguri.Site.Kakaku
+    Meguri.Site.PayPayFleamarket
+    Meguri.Site.Rakuma
+    Meguri.Site.Rakuten
+    Meguri.Site.Store
+    Meguri.Site.TreasureFactory
+    Meguri.Site.YahooShopping
+    Meguri.Site.Yahuoku
+    Meguri.Sites
+    Meguri.Sites.Match
+    Meguri.Text
+    Meguri.Types
+    Meguri.Verify
+  build-depends:
+    , aeson-pretty
+    , async
+    , crypton-connection
+    , cryptohash-sha256
+    , data-default
+    , base16-bytestring
+    , directory
+    , filepath
+    , http-client
+    , http-client-tls
+    , http-types
+    , regex-tdfa
+    , scientific
+    , stm
+    , tagsoup
+    , text-icu
+    , tls
+    , vector
+
+executable meguri
+  import:         shared
+  hs-source-dirs: app
+  main-is:        Main.hs
+  ghc-options:    -threaded -rtsopts "-with-rtsopts=-N"
+  build-depends:
+    , meguri
+    , optparse-applicative
+    , directory
+    , filepath
+    , async
+
+test-suite meguri-test
+  import:         shared
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is:        Main.hs
+  build-depends:
+    , aeson-pretty
+    , directory
+    , filepath
+    , hedgehog
+    , meguri
+    , tasty
+    , tasty-golden
+    , tasty-hedgehog
+    , tasty-hunit

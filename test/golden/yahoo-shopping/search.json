@@ -1,0 +1,279 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "中古"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://item-shopping.c.yimg.jp/i/n/eco-sty_503763141"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "eco-sty_503763141"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "良品中古 WH-1000XM5 ブラック 中古あすつく 土日祝発送 即日発送"
+            },
+            "points": {
+                "note": "ログインなしの表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 569
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 15500
+            },
+            "seller": {
+                "note": "店ID（店名は個別ページで読む）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "eco-sty"
+            },
+            "shipping": {
+                "note": "一覧からは読めない（個別ページで確かめる）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "site": "yahoo-shopping",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://store.shopping.yahoo.co.jp/eco-sty/503763141.html"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "中古"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://item-shopping.c.yimg.jp/i/n/eco-sty_2036340"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "eco-sty_2036340"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "良品中古 WH-1000XM5 シルバー 中古あすつく 土日祝発送 即日発送"
+            },
+            "points": {
+                "note": "ログインなしの表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 625
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 17000
+            },
+            "seller": {
+                "note": "店ID（店名は個別ページで読む）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "eco-sty"
+            },
+            "shipping": {
+                "note": "一覧からは読めない（個別ページで確かめる）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "site": "yahoo-shopping",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://store.shopping.yahoo.co.jp/eco-sty/2036340.html"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "中古"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://item-shopping.c.yimg.jp/i/n/eco-sty_7473687"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "eco-sty_7473687"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "良品中古 WH-1000XM5 ブラック 中古あすつく 土日祝発送 即日発送"
+            },
+            "points": {
+                "note": "ログインなしの表示（参考）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 684
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 18600
+            },
+            "seller": {
+                "note": "店ID（店名は個別ページで読む）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "eco-sty"
+            },
+            "shipping": {
+                "note": "一覧からは読めない（個別ページで確かめる）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "site": "yahoo-shopping",
+            "stock": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "url": "https://store.shopping.yahoo.co.jp/eco-sty/7473687.html"
+        }
+    ],
+    "zero": false
+}

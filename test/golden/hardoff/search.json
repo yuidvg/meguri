@@ -1,0 +1,291 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ランク C"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://p1-d9ebd2ee.imageflux.jp/c!/w=231,h=182,a=0,u=0,q=75/201072/2026_06_08_19_18_58.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM4",
+                "sharedStockId": null,
+                "siteItemId": "6220014"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY BLUETOOTHヘッドホン WH-1000XM4"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 8800
+            },
+            "seller": {
+                "note": "一覧に取扱店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "hardoff",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://netmall.hardoff.co.jp/product/6220014/"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ランク C"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://p1-d9ebd2ee.imageflux.jp/c!/w=231,h=182,a=0,u=0,q=75/201446/20260627_120126.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM4",
+                "sharedStockId": null,
+                "siteItemId": "6282887"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY BLUETOOTHイヤホン WH-1000XM4"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 11000
+            },
+            "seller": {
+                "note": "一覧に取扱店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "hardoff",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://netmall.hardoff.co.jp/product/6282887/"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "ランク C"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://p1-d9ebd2ee.imageflux.jp/c!/w=231,h=182,a=0,u=0,q=75/201285/IMG_1789113087783.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": "WH-1000XM4",
+                "sharedStockId": null,
+                "siteItemId": "6531583"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "SONY BTヘッドホン WH-1000XM4"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "一覧の表示（税込）",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 12100
+            },
+            "seller": {
+                "note": "一覧に取扱店舗なし",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "配送先で変わる",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "ByDestination"
+                }
+            },
+            "site": "hardoff",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://netmall.hardoff.co.jp/product/6531583/"
+        }
+    ],
+    "zero": false
+}

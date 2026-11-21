@@ -1,0 +1,5 @@
+packages:
+  ./.
+
+-- 依存は、nix の開発シェルが用意した版だけを使う（Hackage から別の版を取りに行かない）
+active-repositories: :none
