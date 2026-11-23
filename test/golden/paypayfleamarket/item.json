@@ -100,9 +100,9 @@
         "site": "paypayfleamarket",
         "stock": {
             "note": null,
-            "raw": "購入手続きへ",
+            "raw": "status:OPEN",
             "source": {
-                "contents": "Body",
+                "contents": "NextData",
                 "tag": "ItemPage"
             },
             "value": {

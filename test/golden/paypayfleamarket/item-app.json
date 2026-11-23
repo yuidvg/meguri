@@ -1,0 +1,114 @@
+{
+    "adapter": true,
+    "confirmation": {
+        "tag": "Confirmed"
+    },
+    "offer": {
+        "at": "2026-11-20T23:00:00+09:00",
+        "buy": {
+            "note": "ウェブの購入ボタンは無く、アプリで開くボタンだけ",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "contents": "この商品をアプリで見る",
+                "tag": "BuyActive"
+            }
+        },
+        "condition": {
+            "note": null,
+            "raw": "https://schema.org/UsedCondition",
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "中古"
+        },
+        "image": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "https://auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0210/users/1f35b252710ae206476523228f329278131f857f/i-img900x1200-17930853937589lv94n.jpg"
+        },
+        "keys": {
+            "jan": null,
+            "model": null,
+            "sharedStockId": "z712208474",
+            "siteItemId": "z712208474"
+        },
+        "name": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": "【リコール対応済み】24年製 Panasonic NA-LX127CR ドラム式洗濯乾燥機 右開き"
+        },
+        "points": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceExcl": {
+            "note": "読めなかった",
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": null
+        },
+        "priceIncl": {
+            "note": "フリマの表示価格（これが支払う額）",
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": 143600
+        },
+        "seller": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "Body",
+                "tag": "ItemPage"
+            },
+            "value": "出品者B"
+        },
+        "shipping": {
+            "note": null,
+            "raw": null,
+            "source": {
+                "contents": "JsonLd",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "Free"
+            }
+        },
+        "site": "paypayfleamarket",
+        "stock": {
+            "note": null,
+            "raw": "status:OPEN",
+            "source": {
+                "contents": "NextData",
+                "tag": "ItemPage"
+            },
+            "value": {
+                "tag": "Selling"
+            }
+        },
+        "url": "https://paypayfleamarket.yahoo.co.jp/item/z712208474"
+    }
+}

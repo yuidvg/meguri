@@ -3,6 +3,8 @@ module Meguri.Site.PayPayFleamarket (adapter) where
 
 import Data.Text qualified as T
 import Meguri.Extract.Html
+import Meguri.Extract.JsonLd (at, atPath, str)
+import Meguri.Extract.NextData (nextData)
 import Meguri.Extract.Price (parseYen)
 import Meguri.Site.Common
 import Meguri.Types
@@ -44,19 +46,33 @@ itemPage :: ItemCtx -> Offer Method -> Offer Method
 itemPage ctx d =
   d
     { priceIncl = d.priceIncl {note = Just "フリマの表示価格（これが支払う額）"}
-    , stock = case (hasOrder, soldOut) of
-        (True, _) -> gotRaw Body "購入手続きへ" Selling
-        (False, True) -> gotRaw Body "売り切れ" Sold
-        _ -> d.stock
-    , buy = if hasOrder then got Body (BuyActive "購入手続きへ") else if soldOut then got Body (BuyDisabled "売り切れ") else missing Body "購入ボタンが無い"
+    , stock = case status of
+        Just "OPEN" -> gotRaw NextData "status:OPEN" Selling
+        Just "SOLD" -> gotRaw NextData "status:SOLD" Sold
+        Just other -> gotRaw NextData ("status:" <> other) OutOfStock
+        Nothing
+          | hasOrder -> gotRaw Body "購入手続きへ" Selling
+          | soldOut -> gotRaw Body "売り切れ" Sold
+          | otherwise -> d.stock
+    , buy = buyEntry
     , shipping = d.shipping `orField` (if textHas ["ItemDetail__ShippingFreeLabel", "送料無料"] ctx.html then gotRaw Body "送料無料" Free else missing Body "送料の表示なし")
     , seller = bodyField Body "出品者名が読めなかった" sellerName
     , image = fmap (T.takeWhile (/= '?')) d.image
     , keys = let zid = T.takeWhileEnd (/= '/') (stripQuery ctx.pageUrl) in d.keys {siteItemId = Just zid, sharedStockId = Just zid}
     }
  where
+  -- 出品の記録（__NEXT_DATA__）の状態。OPEN（販売中）・SOLD（売り切れ）など
+  status = str =<< at "status" =<< atPath ["props", "initialState", "itemsState", "items", "item"] =<< nextData ctx.tags
   hasOrder = any (\t -> maybe False ("/order" `T.isSuffixOf`) (attr "href" t)) ctx.tags
   soldOut = textHas ["売り切れました", "SOLD OUT", ">売り切れ<"] ctx.html
+  -- ウェブに購入ボタンが無く、アプリで開くボタンだけが出る出品がある（2026-11-23、おまかせ配送の洗濯機で見た）
+  appOnly = textHas ["この商品をアプリで見る"] ctx.html
+  buyEntry
+    | hasOrder = got Body (BuyActive "購入手続きへ")
+    | status == Just "OPEN" && appOnly = withNote "ウェブの購入ボタンは無く、アプリで開くボタンだけ" (got Body (BuyActive "この商品をアプリで見る"))
+    | Just st <- status, st /= "OPEN" = gotRaw NextData ("status:" <> st) (BuyDisabled (if st == "SOLD" then "売り切れ" else "販売中でない"))
+    | soldOut = got Body (BuyDisabled "売り切れ")
+    | otherwise = missing Body "購入ボタンが無い"
   -- 出品者の欄（/user/ へのリンク）の最初の文字
   sellerName = do
     el <- head (subtrees (\t -> maybe False (\h -> "/user/" `T.isInfixOf` h) (attr "href" t)) ctx.tags)

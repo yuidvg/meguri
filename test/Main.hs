@@ -127,6 +127,8 @@ goldenTests =
     , listGolden "paypayfleamarket" "search" "https://paypayfleamarket.yahoo.co.jp/search/WH-1000XM5?open=1&sort=price&order=asc" 200
     , listGolden "paypayfleamarket" "search-near" "https://paypayfleamarket.yahoo.co.jp/search/NA-LX127C?open=1&sort=price&order=asc" 404
     , itemGolden "paypayfleamarket" "item" "https://paypayfleamarket.yahoo.co.jp/item/z539816586"
+    , itemGolden "paypayfleamarket" "item-app" "https://paypayfleamarket.yahoo.co.jp/item/z712208474"
+    , itemGolden "paypayfleamarket" "item-sold" "https://paypayfleamarket.yahoo.co.jp/item/z675193022"
     , listGolden "rakuma" "search" "https://fril.jp/s?query=WH-1000XM5&transaction=selling&sort=sell_price&order=asc" 200
     , itemGolden "rakuma" "item" "https://item.fril.jp/b482bbfa475809f13059c615705c3340"
     , listGolden "hardoff" "search" "https://netmall.hardoff.co.jp/search/?q=WH-1000XM5&s=3" 200
