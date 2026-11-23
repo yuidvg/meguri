@@ -19,10 +19,9 @@ module Meguri.Query
   ) where
 
 import Data.Aeson (Value, object, (.=))
-import Data.Text qualified as T
 import Meguri.Render (shippingShort, stockShort)
 import Meguri.Selection
-import Meguri.Text (clean, toHalfWidth)
+import Meguri.Text (clean, contains)
 import Meguri.Types
 import Protolude
 
@@ -86,11 +85,6 @@ nameHas w = Criterion ("--has " <> w) (\s -> maybe False (contains w) s.name)
 -- | 商品名に語を含まない
 nameLacks :: Text -> Criterion Seen
 nameLacks w = Criterion ("--not " <> w) (\s -> maybe True (not . contains w) s.name)
-
-contains :: Text -> Text -> Bool
-contains w n = fold w `T.isInfixOf` fold n
- where
-  fold = T.toLower . T.filter (\c -> not (isSpace c) && c /= '-') . toHalfWidth
 
 -- | 外のコマンドに判定を任せる
 judgeByCommand :: Text -> Judge Seen

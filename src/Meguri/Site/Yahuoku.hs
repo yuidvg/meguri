@@ -1,17 +1,37 @@
 -- | ヤフオク（検索・落札相場・個別）。値は __NEXT_DATA__ にある。
-module Meguri.Site.Yahuoku (adapter) where
+module Meguri.Site.Yahuoku (adapter, widen) where
 
 import Data.Aeson (Value (..))
+import Data.Char (isAsciiLower, isAsciiUpper)
 import Data.Text qualified as T
 import Meguri.Extract.JsonLd (arr, at, atPath, int, str)
 import Meguri.Extract.NextData (nextData)
 import Meguri.Extract.Html (Tags)
 import Meguri.Site.Common
+import Meguri.Text (toHalfWidth)
 import Meguri.Types
 import Protolude
 
 adapter :: Adapter
 adapter = Adapter (Just listPage) (Just itemPage)
+
+-- | 検索語を広げる。ヤフオクの検索は、英字と数字の切れ目で語を切り、語ごとに一致するものを探す。
+-- そのため、英字で終わる型番（NA-LX127C）では、英字に続きのある題（NA-LX127CL・NA-LX127CR）が出ない。
+--
+-- 数字のあとの末尾の英字を外した検索語（NA-LX127）と、その結果から残すものが題に含むべき、もとの語（NA-LX127C）を返す。
+-- そういう語が無ければ（WH-1000XM5・ヘッドホン など）'Nothing'。
+widen :: Text -> Maybe (Text, [Text])
+widen q =
+  let cuts = [(w, cut w) | w <- T.words q]
+   in if any (isJust . snd) cuts
+        then Just (T.unwords [fromMaybe w c | (w, c) <- cuts], [w | (w, Just _) <- cuts])
+        else Nothing
+ where
+  cut w =
+    let half = toHalfWidth w
+        front = T.dropWhileEnd letter half
+     in if T.length front < T.length half && not (T.null front) && isDigit (T.last front) then Just front else Nothing
+  letter c = isAsciiUpper c || isAsciiLower c
 
 listPage :: ListCtx -> Tags -> Text -> ListOut
 listPage ctx ts _ = case atPath ["props", "pageProps", "initialState", "search", "items", "listing"] =<< nextData ts of

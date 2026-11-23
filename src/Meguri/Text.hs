@@ -1,6 +1,7 @@
 -- | 文字列の正規化（純粋）
 module Meguri.Text
   ( toHalfWidth
+  , contains
   , clean
   , decodeEntities
   , squish
@@ -18,6 +19,12 @@ import Data.Text qualified as T
 import Data.Time (UTCTime, addUTCTime, defaultTimeLocale, formatTime)
 import Numeric (showHex)
 import Protolude
+
+-- | 語を含むか（大文字小文字・全角半角・空白・ハイフンの違いは無視）。@contains 語 文字列@
+contains :: Text -> Text -> Bool
+contains w n = fold w `T.isInfixOf` fold n
+ where
+  fold = T.toLower . T.filter (\c -> not (isSpace c) && c /= '-') . toHalfWidth
 
 -- | 全角の英数字・記号を半角にする（「１，９８０円」→「1,980円」）
 toHalfWidth :: Text -> Text

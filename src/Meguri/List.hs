@@ -2,6 +2,8 @@
 -- 個別ページの確認まで含めた search の全体は "Meguri.Search"
 module Meguri.List
   ( Lookup (..)
+  , Wider (..)
+  , hasAll
   , lookups
   , searchUrl
   , listAll
@@ -20,7 +22,7 @@ import Meguri.Fetch.Http
 import Meguri.Sanitize (tidyOffer, usableUrl)
 import Meguri.Site.Common
 import Meguri.Sites
-import Meguri.Text (jstStamp, percentEncode)
+import Meguri.Text (contains, jstStamp, percentEncode)
 import Meguri.Types
 import Protolude
 import System.Timeout (timeout)
@@ -34,11 +36,24 @@ data Lookup = Lookup
     url :: Maybe Text
   , -- | 取りに行かずに決まる結果（対象外・種類が合わない など）
     fixed :: Maybe Status
+  , -- | 語を広げた検索も当たるとき、その検索
+    wider :: Maybe Wider
+  }
+
+-- | 語を広げた検索：広げた語の検索URLと、その結果から残すものの条件（題に、この語を全部含む）。
+-- 比べ方は @--has@ と同じ（大文字小文字・全角半角・空白・ハイフンの違いは無視）
+data Wider = Wider
+  { url :: Text
+  , has :: [Text]
   }
 
 -- | 検索語を、サイトの文字コードで % エンコードして、ひな形に入れる
 searchUrl :: Enc -> Text -> Text -> Text
 searchUrl enc template q = T.replace "{q}" (percentEncode (encodeQuery enc q)) template
+
+-- | 題に語を全部含むか（比べ方は @--has@ と同じ）
+hasAll :: [Text] -> Offer m -> Bool
+hasAll ws x = maybe False (\n -> all (`contains` n) ws) x.name.value
 
 data MarketSel = SelNew | SelUsed | SelAll
 
@@ -53,12 +68,12 @@ lookups terms markets = concatMap siteJobs
     _ -> SelAll
   siteJobs s = concatMap (jobsFor s) terms
   jobsFor s q =
-    let mk k t = Lookup s q k (searchUrl s.enc <$> t <*> Just q) Nothing
+    let mk k t = Lookup s q k (searchUrl s.enc <$> t <*> Just q) Nothing Nothing
         new = mk New s.searchNew
         used = mk Used s.searchUsed
         defaultKind = if KNew `elem` s.kinds then New else Used
-        none = Lookup s q defaultKind Nothing Nothing
-        mismatch k why = Lookup s q k Nothing (Just (OutOfScope why))
+        none = Lookup s q defaultKind Nothing Nothing Nothing
+        mismatch k why = Lookup s q k Nothing (Just (OutOfScope why)) Nothing
      in case (sel, s.searchNew, s.searchUsed) of
           _ | s.category == NonPrice -> [mismatch defaultKind "価格以外の情報源（meguri recall で調べる）"]
           (_, Nothing, Nothing) -> [none]
@@ -144,7 +159,11 @@ fetchList f blocked j u ex covAt = do
     Right (out, (method, fetched)) -> do
       -- 続きのページ（価格.com のショップ一覧など）。失敗しても、取れた分は残す
       more <- followAll (4 :: Int) out.follow
-      let offers = [tidyOffer x | x <- out.offers <> concatMap (.offers) more, usableUrl x.url]
+      -- 語を広げた検索。題に語を含むもののうち、まだ無いものを足す。失敗しても、取れた分は残す
+      wide <- maybe (pure []) widerOffers j.wider
+      let found = out.offers <> concatMap (.offers) more
+          added = [x | x <- wide, x.url `notElem` map (.url) found]
+          offers = [tidyOffer x | x <- found <> added, usableUrl x.url]
           cands = [Sighting {term = j.term, market = j.market, offer = x} | x <- offers]
           cheapest = minimumMay (mapMaybe (\x -> x.priceIncl.value) offers)
           status
@@ -153,6 +172,11 @@ fetchList f blocked j u ex covAt = do
             | otherwise = Error "一覧から1件も抜き出せなかった（ページの作りが変わったかもしれない）"
       pure (covAt fetched status method, cands)
  where
+  widerOffers w = do
+    r <- one w.url
+    pure $ case r of
+      Right (o, _) -> filter (hasAll w.has) o.offers
+      Left _ -> []
   -- 続きのページは、1つの仕事につき4ページまで
   followAll _ [] = pure []
   followAll budget (t : ts)

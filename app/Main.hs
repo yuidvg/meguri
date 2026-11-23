@@ -25,6 +25,7 @@ import Meguri.Scope qualified as Scope
 import Meguri.Selection (Ask, Criterion, Judge (..), JudgeBy (..), Selected (..), Selection (..), select)
 import Meguri.List
 import Meguri.Ship (Pref, parsePref, shipPlan, supported)
+import Meguri.Site.Yahuoku qualified as Yahuoku
 import Meguri.Text (jstStamp)
 import Meguri.Types
 import Meguri.Read (Checked (..), Page (..))
@@ -239,11 +240,20 @@ dispatch = \case
     paths <- getPaths
     purgeOld paths
     f <- newFetcher paths.locksDir Nothing
-    let jobs =
-          [ Lookup def q Used (Just (searchUrl def.enc "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p={q}" q)) Nothing
+    let closed = "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p={q}"
+        -- 英字で終わる型番は、英字を外した語でも探す（新しい順に100件まで）。題にもとの語を含むものだけを足す
+        wider def (w, has) = Wider (searchUrl def.enc (closed <> "&n=100") w) has
+        jobs =
+          [ Lookup def q Used (Just (searchUrl def.enc closed q)) Nothing (wider def <$> Yahuoku.widen q)
           | Just def <- [lookupSite "yahuoku"]
           , q <- qs
           ]
+        widened =
+          T.unlines
+            [ "「" <> q <> "」は「" <> w <> "」でも探し（新しい順に100件まで）、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した"
+            | q <- qs
+            , Just (w, has) <- [Yahuoku.widen q]
+            ]
     (cov, sold) <- listAll f jobs
     ask <- getAsk
     selected <- select ask Query.seenRows accept Query.ofSighting sold
@@ -251,7 +261,7 @@ dispatch = \case
       Left e -> judgeFailed e
       Right shown -> case c.format of
         FJsonl -> traverse_ (BC.putStrLn . line "meguri.sold/1") (cheapestFirst shown.chosen)
-        _ -> TIO.putStr (soldTable limit shown.chosen <> "\n" <> coverageSummary cov)
+        _ -> TIO.putStr (soldTable limit shown.chosen <> "\n" <> coverageSummary cov <> widened)
     exitByCoverage cov
   CmdItem c url -> do
     paths <- getPaths

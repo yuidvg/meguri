@@ -36,7 +36,7 @@ meguri search "WH-1000XM5" --judge-cmd '<コマンド>'           # 何を：同
 meguri search "WH-1000XM5" --category リユース --judge-channel '<質問>'   # どこを：当たる販路を選ぶ
 MEGURI_PREF=13 meguri search "WH-1000XM5" --only hardoff    # 送料を計算できるサイトで、配送先までの送料を入れる
 meguri item <URL>                                           # 個別ページを1つ読み、基準の項目を出どころつきで出す
-meguri sold "WH-1000XM5" --min-price 12000                  # ヤフオクの落札相場（件数・最安・中央値・最高）
+meguri sold "WH-1000XM5" --min-price 12000                  # ヤフオクの落札相場（件数・最安・中央値・最高）。英字で終わる型番は、英字を外した語でも探す
 meguri recall "ヘッドホン" "headphone"                       # 消費者庁と CPSC のリコール情報
 meguri sites [--format md]                                  # カタログ
 meguri check [--write] [--all] [--only <site>]              # サイトごとの健康診断

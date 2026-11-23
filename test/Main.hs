@@ -43,6 +43,7 @@ import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
 import Meguri.List
 import Meguri.Site.Common
 import Meguri.Site.Store (taxInclAmount, validEan13)
+import Meguri.Site.Yahuoku qualified as Yahuoku
 import Meguri.Sites
 import Meguri.Text
 import Meguri.Types
@@ -71,6 +72,7 @@ main =
       , scopeTests
       , acceptTests
       , searchTests
+      , widenTests
       , fetchTests
       , concurrencyTests
       , microdataTests
@@ -346,6 +348,32 @@ scopeTests =
     ]
  where
   scopeOf sel = Scope sel [] []
+
+-- | sold：語を広げて探す（ヤフオクの検索は、英字と数字の切れ目で切った語ごとに一致を見る）
+widenTests :: TestTree
+widenTests =
+  testGroup
+    "語を広げる（sold）"
+    [ testCase "英字で終わる型番は、英字を外した語で探し、題にもとの語を含むものを残す" $ do
+        Yahuoku.widen "NA-LX127C" @?= Just ("NA-LX127", ["NA-LX127C"])
+        Yahuoku.widen "KJ-55X80L" @?= Just ("KJ-55X80", ["KJ-55X80L"])
+    , testCase "型番だけを広げ、ほかの語はそのままにする" $
+        Yahuoku.widen "パナソニック NA-LX127C" @?= Just ("パナソニック NA-LX127", ["NA-LX127C"])
+    , testCase "数字で終わる語と、数字の無い語は広げない" $
+        map Yahuoku.widen ["WH-1000XM5", "PS5", "ヘッドホン", "iPhone"] @?= [Nothing, Nothing, Nothing, Nothing]
+    , testCase "広げた検索（NA-LX127）の結果から、題に NA-LX127C を含むもの（C・CL・CR）だけを残す" $ do
+        html <- readFixture "yahuoku/closedsearch-wide.html"
+        let def = fromMaybe (panic "カタログに無い") (lookupSite "yahuoku")
+            ex = fromMaybe (panic "一覧のアダプタが無い") (adapterFor def).listX
+            ctx = ListCtx "yahuoku" "NA-LX127C" Used "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=NA-LX127&n=100" 200 stamp
+            out = ex ctx (parse html) html
+        length out.offers @?= 5
+        map (.url) (filter (hasAll ["NA-LX127C"]) out.offers)
+          @?= [ "https://paypayfleamarket.yahoo.co.jp/item/z699982448"
+              , "https://auctions.yahoo.co.jp/jp/auction/1245406296"
+              , "https://auctions.yahoo.co.jp/jp/auction/j1235312236"
+              ]
+    ]
 
 -- | 何を探すか：見つけた売り物のうち、探している物と認める選び方
 acceptTests :: TestTree
