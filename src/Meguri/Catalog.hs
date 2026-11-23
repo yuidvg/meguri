@@ -108,6 +108,9 @@ data Channel = Channel
     searchUsed :: Maybe Text
   , -- | 検索URLを組み立てられないときの入り方
     searchNote :: Maybe Text
+  , -- | 検索が、英字と数字の切れ目で語を切って、語ごとに一致を見る（「NA-LX127C」で探すと「NA-LX127CL」が出ない）。
+    -- そういうサイトでは、英字で終わる型番を、英字を外した語でも探す
+    widenCodes :: Bool
   , -- | 個別ページのURLの形（正規表現）。URLからサイトを引くのに使う
     itemPatterns :: [Text]
   , hints :: [Text]
@@ -137,6 +140,7 @@ site sid label category kinds tier =
     , searchNew = Nothing
     , searchUsed = Nothing
     , searchNote = Nothing
+    , widenCodes = False
     , itemPatterns = []
     , hints = []
     , checked = d1120
@@ -626,6 +630,7 @@ entries =
       }
   , (site "paypayfleamarket" "Yahoo!フリマ（旧PayPayフリマ）" FleaAuction [KUsed, KP2P] Http)
       { searchUsed = Just "https://paypayfleamarket.yahoo.co.jp/search/{q}?open=1&sort=price&order=asc"
+      , widenCodes = True
       , itemPatterns = ["^https://paypayfleamarket\\.yahoo\\.co\\.jp/item/z[0-9]+"]
       , hints =
           [ "検索結果の商品は、HTMLの <a href=\"/item/z…\"> にある（__NEXT_DATA__ ではない）。個別ページは、JSON-LD で価格・在庫・送料が読める。"
@@ -634,6 +639,7 @@ entries =
       }
   , (site "yahuoku" "ヤフオク" FleaAuction [KUsed, KAuction] Http)
       { searchUsed = Just "https://auctions.yahoo.co.jp/search/search?p={q}&s1=cbids&o1=a"
+      , widenCodes = True
       , itemPatterns = ["^https://auctions\\.yahoo\\.co\\.jp/jp/auction/[a-z0-9]+"]
       , hints =
           [ "__NEXT_DATA__ に、現在価格・入札数・即決価格・終了日時がある。"

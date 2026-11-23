@@ -43,7 +43,6 @@ import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
 import Meguri.List
 import Meguri.Site.Common
 import Meguri.Site.Store (taxInclAmount, validEan13)
-import Meguri.Site.Yahuoku qualified as Yahuoku
 import Meguri.Sites
 import Meguri.Text
 import Meguri.Types
@@ -351,18 +350,29 @@ scopeTests =
  where
   scopeOf sel = Scope sel [] []
 
--- | sold：語を広げて探す（ヤフオクの検索は、英字と数字の切れ目で切った語ごとに一致を見る）
+-- | 語を広げて探す（ヤフオク・Yahoo!フリマの検索は、英字と数字の切れ目で切った語ごとに一致を見る）
 widenTests :: TestTree
 widenTests =
   testGroup
-    "語を広げる（sold）"
+    "語を広げる（search・sold）"
     [ testCase "英字で終わる型番は、英字を外した語で探し、題にもとの語を含むものを残す" $ do
-        Yahuoku.widen "NA-LX127C" @?= Just ("NA-LX127", ["NA-LX127C"])
-        Yahuoku.widen "KJ-55X80L" @?= Just ("KJ-55X80", ["KJ-55X80L"])
+        widen "NA-LX127C" @?= Just ("NA-LX127", ["NA-LX127C"])
+        widen "KJ-55X80L" @?= Just ("KJ-55X80", ["KJ-55X80L"])
     , testCase "型番だけを広げ、ほかの語はそのままにする" $
-        Yahuoku.widen "パナソニック NA-LX127C" @?= Just ("パナソニック NA-LX127", ["NA-LX127C"])
+        widen "パナソニック NA-LX127C" @?= Just ("パナソニック NA-LX127", ["NA-LX127C"])
     , testCase "数字で終わる語と、数字の無い語は広げない" $
-        map Yahuoku.widen ["WH-1000XM5", "PS5", "ヘッドホン", "iPhone"] @?= [Nothing, Nothing, Nothing, Nothing]
+        map widen ["WH-1000XM5", "PS5", "ヘッドホン", "iPhone"] @?= [Nothing, Nothing, Nothing, Nothing]
+    , testCase "search：ヤフオクと Yahoo!フリマだけ、英字を外した語でも、同じひな形で探す" $
+        [(j.channel.sid, w.url, w.has) | j <- lookups ["NA-LX127C"] [] catalog, Just w <- [j.wider]]
+          @?= [ ("paypayfleamarket", "https://paypayfleamarket.yahoo.co.jp/search/NA-LX127?open=1&sort=price&order=asc", ["NA-LX127C"])
+              , ("yahuoku", "https://auctions.yahoo.co.jp/search/search?p=NA-LX127&s1=cbids&o1=a", ["NA-LX127C"])
+              ]
+    , testCase "search：広げる語が無いときと、ヤフオク・Yahoo!フリマに当たらないとき（--market new）は、広げない" $ do
+        length (filter (isJust . (.wider)) (lookups ["WH-1000XM5"] [] catalog)) @?= 0
+        length (filter (isJust . (.wider)) (lookups ["NA-LX127C"] [New] catalog)) @?= 0
+    , testCase "search：広げた語ごとに、どの販路で、どの語で探したかを1行で出す" $
+        widenedNote (lookups ["NA-LX127C", "WH-1000XM5"] [] catalog)
+          @?= "「NA-LX127C」は、paypayfleamarket・yahuoku で「NA-LX127」でも探し、題に「NA-LX127C」を含むものを足した\n"
     , testCase "広げた検索（NA-LX127）の結果から、題に NA-LX127C を含むもの（C・CL・CR）だけを残す" $ do
         html <- readFixture "yahuoku/closedsearch-wide.html"
         let def = fromMaybe (panic "カタログに無い") (lookupSite "yahuoku")

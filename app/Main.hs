@@ -25,7 +25,6 @@ import Meguri.Scope qualified as Scope
 import Meguri.Selection (Ask, Criterion, Judge (..), JudgeBy (..), Selected (..), Selection (..), select)
 import Meguri.List
 import Meguri.Ship (Pref, parsePref, shipPlan, supported)
-import Meguri.Site.Yahuoku qualified as Yahuoku
 import Meguri.Text (jstStamp)
 import Meguri.Types
 import Meguri.Read (Checked (..), Page (..))
@@ -229,11 +228,13 @@ dispatch = \case
         writeLines (dir </> "coverage.jsonl") (map (line "meguri.coverage/2") res.coverage)
         writeLines (dir </> "sightings.jsonl") (map (line "meguri.sighting/1") res.sightings)
         writeLines (dir </> "readings.jsonl") [line "meguri.reading/1" x.reading | x <- res.checked]
-        let foot = "実行の記録 " <> rid <> "：" <> toS dir <> "（readings.jsonl＝読んだ個別ページの全項目と出どころ、sightings.jsonl＝一覧で見かけた売り物の全部、coverage.jsonl、pages/＝取ったページ。7日で消える）\n"
+        let -- 英字で終わる型番を、英字を外した語でも探した販路（search と同じ組み立て）
+            widened = widenedNote (lookups req.query.terms req.scope.markets res.channels.chosen)
+            foot = "実行の記録 " <> rid <> "：" <> toS dir <> "（readings.jsonl＝読んだ個別ページの全項目と出どころ、sightings.jsonl＝一覧で見かけた売り物の全部、coverage.jsonl、pages/＝取ったページ。7日で消える）\n"
         case c.format of
           FJsonl -> traverse_ BC.putStrLn (Report.jsonLines res)
           FMd -> TIO.putStr (Report.markdown 40 res)
-          FTable -> TIO.putStr (fitted (\n -> Report.table req.effort.readsPerLookup n res <> "\n" <> foot) limit)
+          FTable -> TIO.putStr (fitted (\n -> Report.table req.effort.readsPerLookup n res <> widened <> "\n" <> foot) limit)
         exitByCoverage res.coverage
   CmdSold c qs limit accept -> do
     needKey (map (.by) accept.judges)
@@ -244,7 +245,7 @@ dispatch = \case
         -- 英字で終わる型番は、英字を外した語でも探す（新しい順に100件まで）。題にもとの語を含むものだけを足す
         wider def (w, has) = Wider (searchUrl def.enc (closed <> "&n=100") w) has
         jobs =
-          [ Lookup def q Used (Just (searchUrl def.enc closed q)) Nothing (wider def <$> Yahuoku.widen q)
+          [ Lookup def q Used (Just (searchUrl def.enc closed q)) Nothing (wider def <$> widen q)
           | Just def <- [lookupSite "yahuoku"]
           , q <- qs
           ]
@@ -252,7 +253,7 @@ dispatch = \case
           T.unlines
             [ "「" <> q <> "」は「" <> w <> "」でも探し（新しい順に100件まで）、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した"
             | q <- qs
-            , Just (w, has) <- [Yahuoku.widen q]
+            , Just (w, has) <- [widen q]
             ]
     (cov, sold) <- listAll f jobs
     ask <- getAsk

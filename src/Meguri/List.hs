@@ -3,6 +3,8 @@
 module Meguri.List
   ( Lookup (..)
   , Wider (..)
+  , widen
+  , widenedNote
   , hasAll
   , lookups
   , searchUrl
@@ -12,6 +14,7 @@ module Meguri.List
 
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVarIO)
+import Data.Char (isAsciiLower, isAsciiUpper)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Meguri.Catalog
@@ -22,7 +25,7 @@ import Meguri.Fetch.Http
 import Meguri.Sanitize (tidyOffer, usableUrl)
 import Meguri.Site.Common
 import Meguri.Sites
-import Meguri.Text (contains, jstStamp, percentEncode)
+import Meguri.Text (contains, jstStamp, percentEncode, toHalfWidth)
 import Meguri.Types
 import Protolude
 import System.Timeout (timeout)
@@ -47,6 +50,34 @@ data Wider = Wider
   , has :: [Text]
   }
 
+-- | 検索語を広げる。英字と数字の切れ目で語を切り、語ごとに一致を見る検索（ヤフオク・Yahoo!フリマ）では、
+-- 英字で終わる型番（NA-LX127C）で探すと、英字に続きのある題（NA-LX127CL・NA-LX127CR）が出ない。
+--
+-- 数字のあとの末尾の英字を外した検索語（NA-LX127）と、その結果から残すものが題に含むべき、もとの語（NA-LX127C）を返す。
+-- そういう語が無ければ（WH-1000XM5・ヘッドホン など）'Nothing'。
+widen :: Text -> Maybe (Text, [Text])
+widen q =
+  let cuts = [(w, cut w) | w <- T.words q]
+   in if any (isJust . snd) cuts
+        then Just (T.unwords [fromMaybe w c | (w, c) <- cuts], [w | (w, Just _) <- cuts])
+        else Nothing
+ where
+  cut w =
+    let half = toHalfWidth w
+        front = T.dropWhileEnd letter half
+     in if T.length front < T.length half && not (T.null front) && isDigit (T.last front) then Just front else Nothing
+  letter c = isAsciiUpper c || isAsciiLower c
+
+-- | 語を広げて探したことの説明。広げた語ごとに1行（表の下に出す）
+widenedNote :: [Lookup] -> Text
+widenedNote js =
+  T.unlines
+    [ "「" <> q <> "」は、" <> T.intercalate "・" sids <> " で「" <> w <> "」でも探し、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した"
+    | q <- ordNub [j.term | j <- js, isJust j.wider]
+    , Just (w, has) <- [widen q]
+    , let sids = ordNub [j.channel.sid | j <- js, j.term == q, isJust j.wider]
+    ]
+
 -- | 検索語を、サイトの文字コードで % エンコードして、ひな形に入れる
 searchUrl :: Enc -> Text -> Text -> Text
 searchUrl enc template q = T.replace "{q}" (percentEncode (encodeQuery enc q)) template
@@ -68,7 +99,13 @@ lookups terms markets = concatMap siteJobs
     _ -> SelAll
   siteJobs s = concatMap (jobsFor s) terms
   jobsFor s q =
-    let mk k t = Lookup s q k (searchUrl s.enc <$> t <*> Just q) Nothing Nothing
+    let mk k t = Lookup s q k (searchUrl s.enc <$> t <*> Just q) Nothing (wider t)
+        -- 英字で終わる型番は、英字を外した語でも、同じひな形で探す（検索が英字と数字の切れ目で語を切るサイトだけ）
+        wider t = do
+          guard s.widenCodes
+          template <- t
+          (w, has) <- widen q
+          pure (Wider (searchUrl s.enc template w) has)
         new = mk New s.searchNew
         used = mk Used s.searchUsed
         defaultKind = if KNew `elem` s.kinds then New else Used
