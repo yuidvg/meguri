@@ -123,6 +123,7 @@ goldenTests =
     , listGolden "yahuoku" "closedsearch" "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=WH-1000XM5" 200
     , itemGolden "yahuoku" "item" "https://auctions.yahoo.co.jp/jp/auction/f1252794818"
     , listGolden "paypayfleamarket" "search" "https://paypayfleamarket.yahoo.co.jp/search/WH-1000XM5?open=1&sort=price&order=asc" 200
+    , listGolden "paypayfleamarket" "search-near" "https://paypayfleamarket.yahoo.co.jp/search/NA-LX127C?open=1&sort=price&order=asc" 404
     , itemGolden "paypayfleamarket" "item" "https://paypayfleamarket.yahoo.co.jp/item/z539816586"
     , listGolden "rakuma" "search" "https://fril.jp/s?query=WH-1000XM5&transaction=selling&sort=sell_price&order=asc" 200
     , itemGolden "rakuma" "item" "https://item.fril.jp/b482bbfa475809f13059c615705c3340"

@@ -12,14 +12,17 @@ import Text.HTML.TagSoup (Tag (..))
 adapter :: Adapter
 adapter = Adapter (Just listPage) (Just itemPage)
 
--- | 一覧の商品は @<a href="/item/z…">@ にある（__NEXT_DATA__ ではない）
+-- | 一覧の商品は @<a href="/item/z…">@ にある（__NEXT_DATA__ ではない）。
+-- 一致する商品が無いと、HTTP 404 で「検索キーワードに近い商品」を並べる。探した物ではないので、0件とする
 listPage :: ListCtx -> Tags -> Text -> ListOut
-listPage ctx ts html =
-  ListOut
-    { offers = mapMaybe one (subtrees isItemLink ts)
-    , zero = textHas ["に一致する商品はありません", "見つかりませんでした", "商品が見つかりません"] html
-    , follow = []
-    }
+listPage ctx ts html
+  | textHas ["一致する商品が見つからなかったため"] html = ListOut [] True []
+  | otherwise =
+      ListOut
+        { offers = mapMaybe one (subtrees isItemLink ts)
+        , zero = textHas ["に一致する商品はありません", "見つかりませんでした", "商品が見つかりません"] html
+        , follow = []
+        }
  where
   isItemLink t = maybe False ("/item/z" `T.isPrefixOf`) (attr "href" t)
   one el = do
