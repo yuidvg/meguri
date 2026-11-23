@@ -12,14 +12,11 @@ import Meguri.Extract.Generic (Draft)
 import Meguri.Types
 import Protolude
 
--- | 下書きに「HTTPで取った／ブラウザで保存した」の別を付け、判定を添える
-toReading :: PageOrigin -> Bool -> Draft -> Reading
-toReading origin adapter d =
-  let wrap = case origin of
-        FromHttp -> ItemPage
-        FromCapture -> Captured
-      f :: Field Method a -> Field OnPage a
-      f = mapSource wrap
+-- | 下書きの値に「個別ページから読んだ」を付け、判定を添える
+toReading :: Bool -> Draft -> Reading
+toReading adapter d =
+  let f :: Field Method a -> Field OnPage a
+      f = mapSource ItemPage
       o =
         Offer
           { site = d.site

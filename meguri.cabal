@@ -68,7 +68,6 @@ library
     Meguri.List
     Meguri.Ship
     Meguri.Site.BookOff
-    Meguri.Site.Captured
     Meguri.Site.Common
     Meguri.Site.DirectStores
     Meguri.Site.HardOff

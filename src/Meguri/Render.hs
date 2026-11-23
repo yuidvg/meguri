@@ -7,6 +7,7 @@ module Meguri.Render
   , sightingTable
   , soldTable
   , coverageSummary
+  , blockShort
   , readingReport
   , confirmationText
   , confirmationMark
@@ -114,11 +115,29 @@ statusShort :: Status -> Text
 statusShort = \case
   Found n low -> "取得" <> show n <> "件" <> maybe "" (\y -> "・最安" <> yen y) low
   Zero -> "0件"
-  Blocked why -> "ブロック：" <> clean 50 why
+  Blocked b -> "ブロック：" <> clean 90 (blockShort b) <> "（" <> shortStamp b.at <> "）"
+  BlockedBefore day why -> "ブロック（" <> day <> " に確かめた）：" <> clean 50 why
   NeedsBrowser why -> "ブラウザで開く：" <> clean 60 why
   Stopped day why -> "停止中（" <> day <> "）：" <> clean 50 why
   OutOfScope why -> "対象外：" <> clean 50 why
   Error why -> "失敗：" <> clean 60 why
+
+-- | ブロックと決めた根拠と、応答の手がかり（ページの題・Server・Retry-After）。題が根拠の目印と同じなら、重ねて書かない
+blockShort :: Block -> Text
+blockShort b =
+  T.intercalate "・" $
+    [b.reason]
+      <> ["題「" <> t <> "」" | Just t <- [b.title], not (("「" <> t <> "」") `T.isInfixOf` b.reason)]
+      <> ["Server " <> s | Just s <- [b.server]]
+      <> ["Retry-After " <> r | Just r <- [b.retryAfter]]
+
+-- | 行に添えるURL：ブロックならブロックされたページ、ブラウザで開く・停止中なら検索URL
+linkOf :: Coverage -> Maybe Text
+linkOf c = case c.status of
+  Blocked b -> Just b.url
+  NeedsBrowser _ -> c.url
+  Stopped _ _ -> c.url
+  _ -> Nothing
 
 marketShort :: Market -> Text
 marketShort = \case
@@ -136,6 +155,7 @@ coverageSummary cov =
     Found _ _ -> "取得" :: Text
     Zero -> "0件"
     Blocked _ -> "ブロック"
+    BlockedBefore _ _ -> "ブロック"
     NeedsBrowser _ -> "ブラウザで開く"
     Stopped _ _ -> "停止中"
     OutOfScope _ -> "対象外"
@@ -149,10 +169,6 @@ coverageSummary cov =
         -- 価格以外の情報源（リコールなど）には、新品・中古の別が無い
         kindOf c = if (categoryOf c.site) == Just NonPrice then "" else marketShort c.market <> " "
         part c = (if many then "「" <> clean 16 c.term <> "」" else "") <> kindOf c <> statusShort c.status
-        needsUrl c = case c.status of
-          NeedsBrowser _ -> True
-          Stopped _ _ -> True
-          _ -> False
         -- 同じ状態の行（ブラウザで開く・対象外など）は、最初の1つだけ書く
         distinct = nubBy ((==) `on` (\c -> (bucket c, if isFound c then Just (c.term, c.market) else Nothing))) rows
         isFound c = case c.status of
@@ -160,7 +176,7 @@ coverageSummary cov =
           Zero -> True
           Error _ -> True
           _ -> False
-        urls = take 2 [u | c <- rows, needsUrl c, Just u <- [c.url]]
+        urls = take 2 (ordNub [u | c <- rows, Just u <- [linkOf c]])
      in T.intercalate "\t" ([s, T.intercalate " ／ " (map part distinct)] <> urls)
 
 categoryOf :: Text -> Maybe Category
@@ -211,7 +227,6 @@ confirmationText = \case
 sourceText :: OnPage -> Text
 sourceText = \case
   ItemPage m -> "個別ページ/" <> methodText m
-  Captured m -> "保存したHTML/" <> methodText m
 
 methodText :: Method -> Text
 methodText = \case
@@ -319,14 +334,9 @@ renderMd limit entries cov =
           , maybe c.site (.label) def
           , cell (clean 30 c.term) <> "（" <> marketShort c.market <> "）"
           , cell (statusShort c.status)
-          , cell c.method <> maybe "" (\u -> " [URL](" <> u <> ")") (if needsLink c.status then c.url else Nothing)
+          , cell c.method <> maybe "" (\u -> " [URL](" <> u <> ")") (linkOf c)
           , shortStamp c.at
           ]
-  needsLink = \case
-    NeedsBrowser _ -> True
-    Stopped _ _ -> True
-    Blocked _ -> True
-    _ -> False
   row cols = "| " <> T.intercalate " | " cols <> " |"
 
 -- | カタログと健康診断の結果から channels.md を作る

@@ -2,15 +2,20 @@
 --
 -- 同じホストへは、ほかの meguri のプロセスとあわせて同時に1本、間隔は2秒以上（'takeTurn'）。
 -- 全体の同時数は、プロセスごとに8。
+--
+-- 403・429・ボット確認・Access Denied の応答はブロックとして、その事実（'Block'）を返す。
 module Meguri.Fetch.Http
   ( Fetcher
   , newFetcher
   , takeTurn
   , Fetched (..)
+  , FetchError (..)
   , fetchPage
   , fetchReq
   , Req (..)
   , hostOf
+  , blockSign
+  , blockOf
   , PageClass (..)
   , classify
   , userAgent
@@ -28,13 +33,17 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time (UTCTime, getCurrentTime)
+import Meguri.Extract.Html (parse, titleText)
+import Meguri.Fetch.Encoding (decodeBody)
 import Meguri.Sanitize (publicUrl)
+import Meguri.Text (clean, jstStamp)
+import Meguri.Types (Block (..))
 import Network.HTTP.Client
 import Data.Default (def)
 import Network.Connection (TLSSettings (..))
 import Network.HTTP.Client.TLS (mkManagerSettings)
 import Network.TLS qualified as TLS
-import Network.HTTP.Types (statusCode)
+import Network.HTTP.Types (ResponseHeaders, statusCode)
 import Protolude hiding (try)
 import System.Directory (createDirectoryIfMissing)
 import System.FileLock (SharedExclusive (..), lockFile, unlockFile)
@@ -75,9 +84,18 @@ data Fetched = Fetched
   { url :: Text
   , status :: Int
   , contentType :: Maybe Text
+  , headers :: ResponseHeaders
   , body :: ByteString
   , fetchedAt :: UTCTime
   }
+
+-- | 取れなかった理由
+data FetchError
+  = -- | ブロックされた
+    FetchBlocked Block
+  | -- | つながらない・応答がない・URLの形が正しくない など
+    FetchFailed Text
+  deriving stock (Eq, Show)
 
 hostOf :: Text -> Text
 hostOf u = case T.splitOn "/" u of
@@ -97,22 +115,24 @@ data Req = Req
     private :: Bool
   }
 
-fetchPage :: Fetcher -> Text -> IO (Either Text Fetched)
+fetchPage :: Fetcher -> Text -> IO (Either FetchError Fetched)
 fetchPage f u = fetchReq f (Req u Nothing False)
 
-fetchReq :: Fetcher -> Req -> IO (Either Text Fetched)
+fetchReq :: Fetcher -> Req -> IO (Either FetchError Fetched)
 fetchReq f r
-  | not (publicUrl r.url) = pure (Left "公開のホストのURLではないので、取りに行かない")
+  | not (publicUrl r.url) = pure (Left (FetchFailed "公開のホストのURLではないので、取りに行かない"))
   | otherwise = fetchPublic f r
 
-fetchPublic :: Fetcher -> Req -> IO (Either Text Fetched)
+fetchPublic :: Fetcher -> Req -> IO (Either FetchError Fetched)
 fetchPublic f req = do
   -- 全体の枠は、ホストの順番が来てから取る
   r <- takeTurn f (hostOf req.url) (once503 (bracket_ (waitQSem f.slots) (signalQSem f.slots) (request f req)))
   unless req.private $ for_ r $ \p -> for_ f.pagesDir $ \d -> do
     createDirectoryIfMissing True d
     BS.writeFile (d </> pageName req <> ".html") p.body
-  pure r
+  pure $ case r of
+    Left e -> Left (FetchFailed e)
+    Right p -> maybe (Right p) (Left . FetchBlocked) (blockOf p)
 
 -- | 同じホストへは、ほかの meguri のプロセスとあわせて同時に1本、前の取得が終わってから2秒以上空ける。
 --
@@ -177,6 +197,7 @@ request f r = case parseRequest (toS r.url) of
             { url = u
             , status = statusCode (responseStatus resp)
             , contentType = TE.decodeLatin1 <$> lookup "Content-Type" (responseHeaders resp)
+            , headers = responseHeaders resp
             , body = BL.toStrict (responseBody resp)
             , fetchedAt = now
             }
@@ -191,25 +212,15 @@ request f r = case parseRequest (toS r.url) of
       other -> T.take 80 (show other)
     InvalidUrlException _ why -> "URLの形が正しくない：" <> toS why
 
-data PageClass
-  = PageOk
-  | PageNotFound
-  | PageBlocked Text
-  | PageStopped Text
-  | PageError Text
-  deriving stock (Eq, Show)
-
--- | 応答を分ける（純粋）。403・429・ボット確認・Access Denied はブロック、メンテナンスは停止。
-classify :: Int -> Text -> PageClass
-classify status bodyText
-  | status `elem` [403, 429] = PageBlocked ("HTTP " <> show status)
-  | any (`T.isInfixOf` top) botMarks = PageBlocked "ボット確認・Access Denied"
-  | maintenance && (status >= 500 || T.length bodyText < 20000) = PageStopped "メンテナンスのページ"
-  | status == 404 = PageNotFound
-  | status >= 200 && status < 300 = PageOk
-  | otherwise = PageError ("HTTP " <> show status)
+-- | ブロックの応答か（純粋）。403・429か、ページの頭にボット確認・Access Denied の目印があればブロック。
+-- ブロックなら、根拠（「HTTP 403」「ページに「Access Denied」」など）を返す
+blockSign :: Int -> Text -> Maybe Text
+blockSign status bodyText = case byStatus <> byMark of
+  [] -> Nothing
+  signs -> Just (T.intercalate "・" signs)
  where
-  top = T.take 6000 bodyText
+  byStatus = ["HTTP " <> show status | status `elem` [403, 429]]
+  byMark = ["ページに「" <> m <> "」" | m <- take 1 (filter (`T.isInfixOf` T.take 6000 bodyText) botMarks)]
   botMarks =
     [ "Access Denied"
     , "Pardon Our Interruption"
@@ -220,6 +231,42 @@ classify status bodyText
     , "Anti-bot check"
     , "ロボットではありません"
     ]
+
+-- | 取ったページがブロックの応答なら、その事実（純粋）
+blockOf :: Fetched -> Maybe Block
+blockOf p = do
+  let text = snd (decodeBody p.contentType p.body)
+  reason <- blockSign p.status text
+  pure
+    Block
+      { url = p.url
+      , status = p.status
+      , reason
+      , title = clean 120 <$> titleText (parse (T.take 6000 text))
+      , server = header "Server"
+      , retryAfter = header "Retry-After"
+      , at = jstStamp p.fetchedAt
+      }
+ where
+  header name = clean 80 . TE.decodeLatin1 <$> lookup name p.headers
+
+-- | ブロックでなかった応答の分け方
+data PageClass
+  = PageOk
+  | PageNotFound
+  | PageStopped Text
+  | PageError Text
+  deriving stock (Eq, Show)
+
+-- | 応答を分ける（純粋）。メンテナンスは停止。ブロックは、ここに来る前に取得が分ける（'blockOf'）
+classify :: Int -> Text -> PageClass
+classify status bodyText
+  | maintenance && (status >= 500 || T.length bodyText < 20000) = PageStopped "メンテナンスのページ"
+  | status == 404 = PageNotFound
+  | status >= 200 && status < 300 = PageOk
+  | otherwise = PageError ("HTTP " <> show status)
+ where
+  top = T.take 6000 bodyText
   maintenance =
     any
       (`T.isInfixOf` top)

@@ -21,6 +21,7 @@ import Meguri.Health (Health (..))
 import Meguri.Item
 import Meguri.Sanitize (usableUrl)
 import Meguri.List (searchUrl)
+import Meguri.Render (blockShort)
 import Meguri.Site.Common
 import Meguri.Sites
 import Meguri.Text (clean, decodeEntities, jstStamp)
@@ -58,10 +59,10 @@ checkSite f day everything s = case s.tier of
     Just u -> do
       r <- fetchPage f u
       pure $ case r of
-        Left e -> h ("入口：つながらない（" <> e <> "）") "—" True
+        Left (FetchBlocked b) -> h ("入口：ブロック（" <> blockShort b <> "）") "—" True
+        Left (FetchFailed e) -> h ("入口：つながらない（" <> e <> "）") "—" True
         Right p -> case classify p.status (text p) of
           PageStopped why -> h ("入口：停止中のまま（" <> why <> "）") "—" True
-          PageBlocked why -> h ("入口：ブロック（" <> why <> "）") "—" True
           PageOk -> h "入口：HTTP 200（再開したかもしれない。開いて確かめる）" "—" False
           PageNotFound -> h "入口：HTTP 404" "—" True
           PageError why -> h ("入口：" <> why) "—" True
@@ -83,12 +84,12 @@ checkSite f day everything s = case s.tier of
       Just u -> do
         r <- fetchPage f u
         pure $ case r of
-          Left e -> ("検索：つながらない（" <> e <> "）", [], not http && s.tier /= HttpItem)
+          Left (FetchBlocked b) -> ("検索：ブロック（" <> blockShort b <> "）", [], browserTier s.tier)
+          Left (FetchFailed e) -> ("検索：つながらない（" <> e <> "）", [], not http && s.tier /= HttpItem)
           Right p ->
             let body = text p
                 ts = parse body
              in case (classify p.status body, adapter.listX) of
-                  (PageBlocked why, _) -> ("検索：ブロック（" <> why <> "）", [], browserTier s.tier)
                   (PageStopped why, _) -> ("検索：停止中（" <> why <> "）", [], False)
                   (PageError why, _) -> ("検索：" <> why, [], browserTier s.tier)
                   (cls, Just ex) | http ->
@@ -110,7 +111,7 @@ checkSite f day everything s = case s.tier of
     (itemText, itemOk) <- case head links <|> s.sampleItem of
       Nothing -> pure ("個別：見本なし", True)
       Just u -> do
-        r <- readItem f u Nothing
+        r <- readItem f u
         pure $ case r of
           Right rec -> case rec.confirmation of
             Confirmed -> ("個別：確認済み", True)
@@ -121,6 +122,7 @@ checkSite f day everything s = case s.tier of
                   )
             Unconfirmed -> ("個別：何も読めない", False)
           Left (ItemUsage _) -> ("個別：HTTPでは読まない", True)
+          Left (ItemBlocked b) -> ("個別：ブロック（" <> blockShort b <> "）", browserTier s.tier)
           Left (ItemFetch e) -> ("個別：" <> e, browserTier s.tier)
     pure (h searchText itemText (searchOk && itemOk))
 

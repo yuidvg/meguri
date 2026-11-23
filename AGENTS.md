@@ -30,22 +30,22 @@ nix flake check                     # テストと、docs/channels.md が古く�
 meguri search "WH-1000XM5" --min-price 12000 --has XM5     # 何を・どこを → 個別ページまで読んだ結果、を1回で
 meguri search "WH-1000XM5" --format jsonl                   # 構造化した出力（meguri.result/1 など）
 meguri search "WH-1000XM5" --format md                      # スキルの出力の表（候補・未確認の候補・どこまで探したか）
-meguri search "WH-1000XM5" --url <URL> --page <URL>=saved.html   # 名指しのページ（HTTPで読めるもの・ブラウザで保存したHTML）を結果に入れる
+meguri search "WH-1000XM5" --url <URL>                     # 名指しのページ（HTTPで読める個別ページ）を結果に入れる
 meguri search "WH-1000XM5" --judge '<質問>'                  # 何を：探している物かどうかを、判定モデル jev に聞く（OPENROUTER_API_KEY が要る）
 meguri search "WH-1000XM5" --judge-cmd '<コマンド>'           # 何を：同じ判定を、外のコマンドに任せる
 meguri search "WH-1000XM5" --category リユース --judge-channel '<質問>'   # どこを：当たる販路を選ぶ
 MEGURI_PREF=13 meguri search "WH-1000XM5" --only hardoff    # 送料を計算できるサイトで、配送先までの送料を入れる
-meguri item <URL> [--html saved.html]                       # 個別ページを1つ読み、基準の項目を出どころつきで出す
+meguri item <URL>                                           # 個別ページを1つ読み、基準の項目を出どころつきで出す
 meguri sold "WH-1000XM5" --min-price 12000                  # ヤフオクの落札相場（件数・最安・中央値・最高）
 meguri recall "ヘッドホン" "headphone"                       # 消費者庁と CPSC のリコール情報
 meguri sites [--format md]                                  # カタログ
 meguri check [--write] [--all] [--only <site>]              # サイトごとの健康診断
 ```
 
-- **`search` は、入力だけで結果が決まる。** 前に走らせた結果を読んで続きに使うコマンドは無い（`verify`・`rank`・`render` と `--run` は、なくした）。ブラウザで保存したページを足したいときは、`--page` を付けて同じ `search` をもう一度走らせる。キャッシュは持たないので、走らせ直すとサイトにもう一度当たり、jev にももう一度聞く。
+- **`search` は、入力だけで結果が決まる。** 前に走らせた結果を読んで続きに使うコマンドは無い（`verify`・`rank`・`render` と `--run` は、なくした）。キャッシュは持たないので、走らせ直すとサイトにもう一度当たり、jev にももう一度聞く。
 - **`search` の形は「何を（`Query`）→ どこを（`Scope`）→ 結果（`Report`）」。** 「どこまで」は `Effort`。
   - 何を：検索語と、見つけた売り物のうち「探している物」と認める選び方（`--min-price`・`--max-price`・`--has`・`--not`・`--judge`・`--judge-cmd`）。
-  - どこを：当たる販路の選び方（`--only`・`--skip`・`--category`・`--judge-channel`・`--judge-channel-cmd`）、新品・中古（`--market`）、名指しのページ（`--url`・`--page`）。
+  - どこを：当たる販路の選び方（`--only`・`--skip`・`--category`・`--judge-channel`・`--judge-channel-cmd`）、新品・中古（`--market`）、名指しのページ（`--url`）。
   - どこまで：個別ページを読む数（`--read N`。販路と新品・中古の組ごとに、安い順で。既定は 3）と、時間（`--time`）。
 - **選び方（`Selection a`）は、条件（`Criterion`）と判定（`Judge`）でできている。** 選ばれるのは「全部を満たすもの」で、書く順によらない。条件を先に、判定を後にかける。
   - 条件は純粋で、1件ごとに決まる。「何を」の条件は、一覧の値と、個別ページを読んだあとの値の両方にかける。
@@ -59,7 +59,7 @@ meguri check [--write] [--all] [--only <site>]              # サイトごとの
 - 標準出力（`table`）は30KB以内。確かめた候補は、枠ごとに、確認済み → 一部 の順で、支払額の安い順。同じURLと同じ在庫（共通の在庫番号）は1つにまとめる。
 - `MEGURI_PREF`（配送先の都道府県コード 01〜47 か都道府県名）があると、`search`・`item`・`ship` は、送料を計算できるサイト（ハードオフ・トレジャーファクトリー）で送料を問い合わせる。配送先は、実行の記録に残さない。
 - 終了コード：0＝成功（一部のサイトがブロックでも成功）、2＝使い方の誤り、3＝取りに行った全サイトで失敗（か、判定が失敗）。
-- JSON Lines の各行には `schema`（`meguri.result/1`・`meguri.unread/1`・`meguri.summary/1`・`meguri.coverage/1`・`meguri.reading/1`・`meguri.sighting/1`・`meguri.sold/1`・`meguri.recall/1`）が付く。
+- JSON Lines の各行には `schema`（`meguri.result/1`・`meguri.unread/1`・`meguri.summary/1`・`meguri.coverage/2`・`meguri.reading/1`・`meguri.sighting/1`・`meguri.sold/1`・`meguri.recall/1`）が付く。
 
 ## 作りの要点
 
@@ -77,6 +77,7 @@ Request
 ```
 
 - **状態を持たない。** `search` の結果は、`Request` と、そのときのサイトの中身だけで決まる。途中の結果をファイルに置いて、あとのコマンドが書き足していく作りにしない。キャッシュも持たない（2026-11-23 になくした。当たるのは同じ検索をすぐ走らせ直したときだけで、同時に走らせると落ちる元になっていた）。速さは、並列の取得で出す。
+- **ブロックされたら、その事実を返す。** ブロックと決めた根拠（状態コード・ページの目印）、ページの題、Server・Retry-After のヘッダ、取った時刻、ページのURLを、「どこまで探したか」と「読めなかった候補」に入れる（`Block`）。ブラウザで保存したHTMLを受け取る機能は持たない（2026-11-23 になくした。`search --page`・`item --html` と、そのためのアダプタ）。ブラウザでしか開けないサイトは、エージェントと人が開く。
 - **同時に走らせてよい。** プロセスの外に置くのは、実行の記録（書くだけ）と、ホストごとのロックファイル（`$XDG_CACHE_HOME/meguri/locks/`、中身は空）だけ。どちらも、ほかの meguri とぶつかっても壊れない作りにする。
 - **名前**（同じものを、別の名前で呼ばない）：
 
@@ -106,18 +107,17 @@ Request
   - `Meguri.Report`：`search` の出力（表・JSON Lines・Markdown）。
 
 - **サイトの知識の出どころは `src/Meguri/Catalog.hs` だけ。** `docs/channels.md` はそこから作る。注記を docs に直接書かない。健康診断の結果だけは `src/Meguri/Catalog/Health.hs` にあり、`meguri check --write` が書く（手で直さない）。
-- **取得と抽出を分ける。** 抽出は「HTMLの文字列 → 値」の純粋な関数（`Meguri.Extract.*`・`Meguri.Site.*`）。HTTP で取ったページにも、保存したHTMLにも、fixture にも同じ関数を使う。取得・時刻・ファイルの読み書きは `Meguri.Fetch.*`・`Meguri.Run`・`app/Main.hs` に置く。
+- **取得と抽出を分ける。** 抽出は「HTMLの文字列 → 値」の純粋な関数（`Meguri.Extract.*`・`Meguri.Site.*`）。HTTP で取ったページにも、fixture にも同じ関数を使う。取得・時刻・ファイルの読み書きは `Meguri.Fetch.*`・`Meguri.Run`・`app/Main.hs` に置く。
 - **値ごとに出どころを持たせる**（`Field s a`）。読めなかった値は `null` にして `note` に理由を書く。数字は作らない：税抜しか無ければ税込は `null`、本文で税込と確かめられない額も `null`、送料が配送先しだいなら支払額は `null`。
-  - 価格の欄に「税込」の文字が無い店（コストコ、ヤマダ、ニトリ）は、確かめた日つきの「サイトの決まり」として税込と読み、そのことを `note` に書く。
-  - BUYMA は、「関税負担なし」の印があるときだけ、表示価格を支払う額として読む。eBay は、円の額が目安の換算なので、税込価格と支払額を出さない。
+  - 価格の欄に「税込」の文字が無い店（コストコ）は、確かめた日つきの「サイトの決まり」として税込と読み、そのことを `note` に書く。
+  - BUYMA は、「関税負担なし」の印があるときだけ、表示価格を支払う額として読む。
 - **確認済みは型で縛る。** 一覧・APIの値は `Offer OnList`、個別ページの値は `Offer OnPage`。`Meguri.Confirm.judge` は後者しか受け取らないので、一覧の値から `Confirmed` は作れない。汎用の抽出だけ（アダプタなし）の記録も `Confirmed` にしない。枠に分けるとき（`Meguri.Arrange`）も、一覧の候補は未確認のまま並べる。
 - **汎用の部品が先、アダプタは癖だけ。** `Meguri.Extract.Generic` が JSON-LD → microdata（Product の範囲だけ）→ OGP の順に読み、アダプタが上書きする。
   - `Meguri.Site.<サイト>`：モール・フリマ・リユース店（楽天、Yahoo!、価格.com、ヤフオク、Yahoo!フリマ、ラクマ、ハードオフ、トレジャーファクトリー、ジモティー、ブックオフ）。
   - `Meguri.Site.DirectStores`：直販の店（ロフト、ハンズ、Francfranc、コーナン、ディノス、ジャパネット、イオシス、イシバシ楽器、カインズ、cado、買取王国、赤ちゃん本舗、コストコ、IKEA、ソフマップ）。共通の部品は `Meguri.Site.Store`（税込の裏づけ、「◯円以上で送料無料」、カートの読み取り、在庫の言い回し、JAN のチェックディジット、一覧のカード切り）。
   - `Meguri.Site.Malls`：店や出品者が入れ替わる売り場（LOHACO、au PAY マーケット、BUYMA、ロコンド）。販売者は、ページに書いてある店・出品者の名前を読む。
-  - `Meguri.Site.Captured`：ブラウザで保存したHTMLだけを読むサイト（ヨドバシ、ヤマダ、ケーズデンキ、ニトリ、Amazon、メルカリ、2nd STREET、じゃんぱら、eBay）。おすすめの枠を読まないよう、主の商品の id や目印だけを指す。
 - **出力する文字列は整える**（`Meguri.Sanitize`）。商品名や店名はページの書き手が自由に書ける。長さを切り、制御文字を除き、URL は http(s) だけを通す。説明文は抜き出さない。ページに書かれたURLをたどるときは、公開のホストだけを取りに行く。
-- **取得の決まり**（`Meguri.Fetch.Http`）：同じホストへは同時に1本・間隔2秒以上で、ほかの meguri のプロセスともロックファイル（flock）で分け合う。取り終わってから2秒ロックを持ち続けて放すので、前の取得の時刻はどこにも書かない。全体の同時数は、プロセスごとに8。応答はキャッシュしない。403・429・ボット確認は `Blocked` として、そのホストをそこでやめる。検索結果は1ページ目だけを取る。続きのページ（価格.com のシリーズ → 色ごとのショップ一覧）は、1つの検索につき4ページまで。
+- **取得の決まり**（`Meguri.Fetch.Http`）：同じホストへは同時に1本・間隔2秒以上で、ほかの meguri のプロセスともロックファイル（flock）で分け合う。取り終わってから2秒ロックを持ち続けて放すので、前の取得の時刻はどこにも書かない。全体の同時数は、プロセスごとに8。応答はキャッシュしない。403・429・ボット確認・Access Denied は `Blocked` として、その事実（`Block`）を返し、そのホストをそこでやめる。検索結果は1ページ目だけを取る。続きのページ（価格.com のシリーズ → 色ごとのショップ一覧）は、1つの検索につき4ページまで。
 - フィールド名がぶつかるので `NoFieldSelectors` を使っている。値は `x.field` で読む。
 
 ## アダプタを足すとき
@@ -129,35 +129,14 @@ Request
 5. `meguri check --only <site>` で、実際のサイトでも同じように読めるかを見る。
 6. 一覧のアダプタは、その店に無い語（型番など）でも `meguri search "<語>" --only <site>` を走らせて、0件になるかを見る。検索結果の後ろや、該当なしのページに、おすすめ・ランキング・最近売れた商品の枠を並べるサイトがある（ハンズ、ディノス、BUYMA）。検索結果そのものをJSで描画し、HTMLにはそうした枠しか無いサイトもある（Francfranc）。読む範囲を検索結果の入れ物に限る（`CardOpts` の `regionId`・`emptyMarks`）。
 
-ブラウザでしか開けないサイトのページは、画面ありの agent-browser（ログインなし）で保存できることがある：
-
-```bash
-agent-browser --headed open "<URL>"
-agent-browser eval "document.documentElement.outerHTML" > saved.txt   # JSON の文字列として出る。戻してから渡す
-```
-
-ヨドバシ・ヤマダ・ケーズデンキ・ニトリ・Amazon・メルカリ・2nd STREET・じゃんぱら・eBay は、これで個別ページを保存できた（2026-11-21）。開けなかったサイトは次のとおり。ブロックや確認の画面が出たら、そこでやめる（やり直さない）。
-
-| サイト | 出た画面（2026-11-21） |
-|---|---|
-| ビックカメラ | 「通信に問題があるためアクセスを遮断しました」 |
-| ノジマ | 個別ページが Access Denied |
-| マップカメラ | 検索は開けたが、個別ページが Access Denied |
-| ZOZOTOWN | 検索が Access Denied |
-| ゲオ | 検索が「ただいまサイトが大変込み合っております」の案内 |
-| KOMEHYO | 検索は開けたが、個別ページが「セッションが無効となっています」のエラーページ |
-
-保存したHTMLには、お届け先の地名、受取店舗、レビューの投稿者名が入ることがある。fixture には、主の商品の欄だけを抜き出して置く。
-
 ## いまの範囲
 
 - 検索と個別ページ：楽天（支店：ジョーシン・エディオン・2nd STREET）、Yahoo!ショッピング（2nd STREET の Yahoo!店）、ヤフオク（検索・落札相場・個別）、Yahoo!フリマ、ラクマ、ハードオフ、トレジャーファクトリー、ジモティー、ブックオフ、ロフト、ハンズ、コーナン、ディノス、ジャパネット、イオシス、イシバシ楽器、カインズ、cado、買取王国、赤ちゃん本舗、BUYMA。価格.com は検索とショップ一覧（個別ページとしては読まない）。
-- 個別ページだけ：コストコ、IKEA、ソフマップ（新品）、Francfranc、LOHACO、au PAY マーケット、ロコンド。ブラウザで保存したHTML：ヨドバシ、ヤマダ、ケーズデンキ、ニトリ、Amazon、メルカリ、2nd STREET、じゃんぱら、eBay。
+- 個別ページだけ：コストコ、IKEA、ソフマップ（新品）、Francfranc、LOHACO、au PAY マーケット、ロコンド。
 - ほかのサイトは、開くべきURLの行として「どこまで探したか」に出る。`item` は汎用の抽出で読める分だけ読み、`partial` にとどめる。
 - まだ無いもの：
-  - 保存したHTMLのアダプタ：ビックカメラ、ノジマ、ゲオ、KOMEHYO、マップカメラ、ZOZOTOWN。画面ありの agent-browser（ログインなし）では個別ページを開けなかった（上の表）。ログインしていない状態で、人が自分のブラウザで保存したページがあれば書ける。
   - HTTP の段で、まだ汎用の抽出だけのサイト：ショップチャンネル、BALMUDA、plywood、ACTUS、unico、IDÉE、ビバホーム、たのめーる、カウネット、モバオク、ワンダーレックス、Rentio、CLAS、honto、紀伊國屋書店（`check` の「汎用の抽出」の行）。
-  - au PAY マーケットの送料とカートのボタン（JSで描画される）、じゃんぱらの送料（画像で出る）は読めない。
+  - au PAY マーケットの送料とカートのボタン（JSで描画される）は読めない。
   - 公式API（Yahoo!ショッピング 商品検索 v3 など）と、meguri がブラウザを動かす取得（指示書の 2.5 の Phase 2。任意）。
   - 送料の計算は2サイトだけ。価格.com の転送URL（アフィリエイトの中継を通るもの）は、自動では開かない（`Meguri.Read.tracked`）。「ブラウザで開く」として出す。
   - 応答の遅いホスト（楽天の個別ページ）は、同じホストへ1本ずつという決まりのため、1回の `search` では読み切れないことがある。

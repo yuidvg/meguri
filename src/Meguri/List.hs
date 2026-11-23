@@ -10,7 +10,7 @@ module Meguri.List
 
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Concurrent.STM (TVar, modifyTVar', newTVarIO, readTVarIO)
-import Data.Set qualified as Set
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Meguri.Catalog
 import Data.Time (UTCTime, diffUTCTime, getCurrentTime)
@@ -82,7 +82,7 @@ listAll f jobs = do
 -- 期限を過ぎた仕事は、そこでやめて「時間切れ」と記録する。
 listThen :: Fetcher -> Maybe UTCTime -> [Lookup] -> ([Sighting] -> IO a) -> IO ([Coverage], [Sighting], [a])
 listThen f deadline jobs next = do
-  blocked <- newTVarIO Set.empty
+  blocked <- newTVarIO Map.empty
   results <- mapConcurrently (one blocked) jobs
   pure (map (\(c, _, _) -> c) results, concatMap (\(_, cs, _) -> cs) results, mapMaybe (\(_, _, a) -> a) results)
  where
@@ -102,7 +102,7 @@ listThen f deadline jobs next = do
       let left = realToFrac (diffUTCTime d now) :: Double
       if left <= 0 then pure Nothing else timeout (ceiling (left * 1000000)) act
 
-runJob :: Fetcher -> TVar (Set Text) -> Lookup -> IO (Coverage, [Sighting])
+runJob :: Fetcher -> TVar (Map Text Block) -> Lookup -> IO (Coverage, [Sighting])
 runJob f blocked j = do
   now <- jstStamp <$> getCurrentTime
   let covAt at status method = Coverage {site = j.channel.sid, term = j.term, market = j.market, status, url = j.url, method, at}
@@ -114,12 +114,12 @@ runJob f blocked j = do
     (Just st, _, _, _) -> pure (cov st "カタログ", [])
     (_, TierOutOfScope, _, _) -> pure (cov (OutOfScope hint) "カタログ", [])
     (_, TierStopped why, _, _) -> pure (cov (Stopped (show j.channel.checked) why) "カタログ（日を改めて開き直す）", [])
-    (_, TierBlocked, _, _) -> pure (cov (Blocked hint) "カタログ", [])
+    (_, TierBlocked, _, _) -> pure (cov (BlockedBefore (show j.channel.checked) hint) "カタログ", [])
     (_, Http, Just u, Just ex) -> do
-      already <- Set.member (hostOf u) <$> readTVarIO blocked
-      if already
-        then pure (cov (Blocked "同じホストが先の取得でブロックされたので、やめた") "HTTP", [])
-        else fetchList f blocked j u ex covAt
+      already <- Map.lookup (hostOf u) <$> readTVarIO blocked
+      case already of
+        Just b -> pure (cov (Blocked b) "HTTP", [])
+        Nothing -> fetchList f blocked j u ex covAt
     (_, Http, Just _, Nothing) -> pure (cov (NeedsBrowser "HTTPで取れるが、アダプタがまだ無い") "ブラウザで開く", [])
     (_, Http, Nothing, _) -> pure (cov (NeedsBrowser entry) "ブラウザで開く", [])
     (_, HttpItem, _, _) -> pure (cov (NeedsBrowser (maybe "検索はJS描画。個別ページはHTTPで読める（見つけた商品のURLを --url で渡す）" (const entry) j.channel.searchNote)) "ブラウザで開く", [])
@@ -128,7 +128,7 @@ runJob f blocked j = do
 
 fetchList
   :: Fetcher
-  -> TVar (Set Text)
+  -> TVar (Map Text Block)
   -> Lookup
   -> Text
   -> (ListCtx -> Tags -> Text -> ListOut)
@@ -165,16 +165,16 @@ fetchList f blocked j u ex covAt = do
   one target = do
     r <- fetchPage f target
     case r of
-      Left e -> pure (Left (Error e))
+      Left (FetchBlocked b) -> do
+        atomically (modifyTVar' blocked (Map.insert (hostOf target) b))
+        pure (Left (Blocked b))
+      Left (FetchFailed e) -> pure (Left (Error e))
       Right p -> do
         let (_, text) = decodeBody p.contentType p.body
             ctx = ListCtx {siteId = j.channel.sid, term = j.term, market = j.market, pageUrl = target, httpStatus = p.status, stamp = jstStamp p.fetchedAt}
             out = ex ctx (parse text) text
             method = ("HTTP" :: Text, jstStamp p.fetchedAt)
         case classify p.status text of
-          PageBlocked why -> do
-            atomically (modifyTVar' blocked (Set.insert (hostOf target)))
-            pure (Left (Blocked why))
           PageStopped why -> pure (Left (Stopped (T.take 10 (jstStamp p.fetchedAt)) why))
           PageError why -> pure (Left (Error why))
           PageNotFound

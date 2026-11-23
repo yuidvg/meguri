@@ -10,7 +10,7 @@ import Data.ByteString.Char8 qualified as BC
 import Data.Set qualified as Set
 import Data.ByteString.Lazy qualified as BL
 import Data.Text qualified as T
-import Data.Time (addUTCTime, diffUTCTime, getCurrentTime)
+import Data.Time (UTCTime (..), addUTCTime, diffUTCTime, fromGregorian, getCurrentTime)
 import Hedgehog (forAll, property, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -22,7 +22,7 @@ import Meguri.Extract.Html (parse)
 import Meguri.Extract.Microdata (itemprop)
 import Meguri.Extract.Price
 import Meguri.Fetch.Encoding
-import Meguri.Fetch.Http (PageClass (..), classify, newFetcher, takeTurn)
+import Meguri.Fetch.Http (Fetched (..), PageClass (..), blockOf, blockSign, classify, newFetcher, takeTurn)
 import Meguri.Item (extractItem)
 import Meguri.Arrange (Frame (..), arrange)
 import Meguri.Recall qualified as Recall
@@ -67,7 +67,6 @@ main =
       , confirmTests
       , rankTests
       , shipTests
-      , capturedTests
       , storeTests
       , scopeTests
       , acceptTests
@@ -104,14 +103,7 @@ itemGolden :: Text -> FilePath -> Text -> TestTree
 itemGolden siteId file url =
   goldenVsString (toS siteId <> "/" <> file) ("test/golden/" <> toS siteId <> "/" <> file <> ".json") $ do
     html <- readFixture (toS siteId <> "/" <> file <> ".html")
-    pure (pretty (extractItem FromHttp url stamp html))
-
--- | 通常のブラウザで保存したHTMLの fixture → 記録（出どころは「保存したHTML」）
-capturedGolden :: Text -> FilePath -> Text -> TestTree
-capturedGolden siteId file url =
-  goldenVsString (toS siteId <> "/" <> file <> "（保存したHTML）") ("test/golden/" <> toS siteId <> "/" <> file <> ".json") $ do
-    html <- readFixture (toS siteId <> "/" <> file <> ".html")
-    pure (pretty (extractItem FromCapture url stamp html))
+    pure (pretty (extractItem url stamp html))
 
 goldenTests :: TestTree
 goldenTests =
@@ -174,15 +166,6 @@ goldenTests =
     , listGolden "akachan" "search" "https://shop.akachan.jp/shop/goods/search.aspx?search=x&keyword=%E3%83%99%E3%83%93%E3%83%BC%E3%82%AB%E3%83%BC&sort=sp" 200
     , itemGolden "akachan" "item" "https://shop.akachan.jp/shop/g/g204781100/"
     , itemGolden "locondo" "item" "https://www.locondo.jp/shop/commodity/SCLR0682D/IN8133DU000020/"
-    , capturedGolden "yodobashi" "item" "https://www.yodobashi.com/product/100000001007090035/"
-    , capturedGolden "yamada" "item" "https://www.yamada-denkiweb.com/1593632012/"
-    , capturedGolden "ksdenki" "item" "https://www.ksdenki.com/item?sku=4548736163560"
-    , capturedGolden "nitori" "item" "https://www.nitori-net.jp/ec/product/2110100030543s/"
-    , capturedGolden "janpara" "item" "https://www.janpara.co.jp/sale/search/detail/?SRCODE=216069688"
-    , capturedGolden "ebay" "item" "https://www.ebay.com/itm/336313542593"
-    , capturedGolden "amazon" "item" "https://www.amazon.co.jp/dp/B09Z2QYYD1"
-    , capturedGolden "mercari" "item" "https://jp.mercari.com/item/m94254522440"
-    , capturedGolden "2ndstreet" "item" "https://www.2ndstreet.jp/goods/detail/goodsId/2343445325962/shopsId/31545"
     , goldenVsString "recall-caa/search" "test/golden/recall-caa/search.json" $ do
         html <- readFixture "recall-caa/search.html"
         pure (pretty (Recall.parseCaa "ヘッドホン" stamp (parse html)))
@@ -265,7 +248,6 @@ confirmTests =
   testGroup
     "確認済みかどうかの判定"
     [ testCase "7項目すべて読めたら confirmed" $ judge True full @?= Confirmed
-    , testCase "ブラウザで保存したHTMLでも confirmed" $ (toReading FromCapture True draft).confirmation @?= Confirmed
     , testCase "送料が読めなければ partial" $
         judge True full {shipping = missing (ItemPage Body) "無い"} @?= Partial ["送料"]
     , testCase "送料が「不明」でも partial" $
@@ -295,61 +277,7 @@ confirmTests =
       , buy = got Body (BuyActive "カートに入れる")
       }
   full :: Offer OnPage
-  full = (toReading FromHttp True draft).offer
-
--- | 保存したHTMLには、おすすめの枠が混ざる。主の商品の欄だけを読む
-capturedTests :: TestTree
-capturedTests =
-  testGroup
-    "保存したHTML"
-    [ testCase "ヨドバシ：おすすめの枠の価格・在庫・配達料を読まない" $ do
-        html <- readFixture "yodobashi/item.html"
-        let r = extractItem FromCapture "https://www.yodobashi.com/product/100000001007090035/" stamp html
-        T.isInfixOf "￥9,999" html @?= True
-        (r.offer.priceIncl.value, r.offer.stock.value, r.offer.shipping.value) @?= (Just (Yen 45440), Just InStock, Just Free)
-        r.confirmation @?= Confirmed
-    , testCase "Amazon：支払う価格を読み、隣の参考価格を読まない" $ do
-        html <- readFixture "amazon/item.html"
-        let r = extractItem FromCapture "https://www.amazon.co.jp/dp/B09Z2QYYD1" stamp html
-        T.isInfixOf "49,500" html @?= True
-        r.offer.priceIncl.value @?= Just (Yen 38600)
-    , testCase "2nd STREET：おすすめの枠の商品を読まず、13桁の番号を共通の在庫番号にする" $ do
-        html <- readFixture "2ndstreet/item.html"
-        let r = extractItem FromCapture "https://www.2ndstreet.jp/goods/detail/goodsId/2343445325962/shopsId/31545" stamp html
-        (r.offer.priceIncl.value, r.offer.condition.value, r.offer.keys.sharedStockId) @?= (Just (Yen 16390), Just "中古B", Just "2343445325962")
-    , testCase "ヤマダ：関連商品の欄の価格と「送料別」を読まない" $ do
-        html <- readFixture "yamada/item.html"
-        let r = extractItem FromCapture "https://www.yamada-denkiweb.com/1593632012/" stamp html
-        (T.isInfixOf "59,400" html, T.isInfixOf "送料別" html) @?= (True, True)
-        (r.offer.priceIncl.value, r.offer.shipping.value, r.offer.stock.value) @?= (Just (Yen 43160), Just Free, Just InStock)
-        r.confirmation @?= Confirmed
-    , testCase "ケーズデンキ：税込と税別を取り違えず、関連商品の「在庫なし」を読まない" $ do
-        html <- readFixture "ksdenki/item.html"
-        let r = extractItem FromCapture "https://www.ksdenki.com/item?sku=4548736163560" stamp html
-        T.isInfixOf "在庫なし" html @?= True
-        (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.stock.value, r.offer.keys.jan) @?= (Just (Yen 43160), Just (Yen 39237), Just InStock, Just "4548736163560")
-        r.confirmation @?= Confirmed
-    , testCase "ニトリ：受取店舗の「在庫なし」を読まない。個別送料の商品は、支払額を出さない" $ do
-        html <- readFixture "nitori/item.html"
-        let r = extractItem FromCapture "https://www.nitori-net.jp/ec/product/2110100030543s/" stamp html
-        T.isInfixOf "在庫なし" html @?= True
-        (r.offer.priceIncl.value, r.offer.stock.value, payable r.offer) @?= (Just (Yen 9500), Just InStock, Nothing)
-        r.confirmation @?= Partial ["送料"]
-    , testCase "じゃんぱら：分類の画像を商品の画像にしない。店舗を販売者にする" $ do
-        html <- readFixture "janpara/item.html"
-        let r = extractItem FromCapture "https://www.janpara.co.jp/sale/search/detail/?SRCODE=216069688" stamp html
-        (r.offer.priceIncl.value, r.offer.image.value, r.offer.seller.value, r.offer.keys.siteItemId) @?= (Just (Yen 500), Nothing, Just "じゃんぱら 大宮東口店", Just "216069688")
-    , testCase "eBay：換算の額は税抜の欄に入れ、税込価格と支払額は出さない。似た出品の欄を読まない" $ do
-        html <- readFixture "ebay/item.html"
-        let r = extractItem FromCapture "https://www.ebay.com/itm/336313542593" stamp html
-        T.isInfixOf "9,999" html @?= True
-        (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.shipping.value, payable r.offer) @?= (Nothing, Just (Yen 5223), Just (Fixed (Yen 2508)), Nothing)
-        r.confirmation @?= Partial ["税込価格"]
-    , testCase "出どころは「保存したHTML」になる" $ do
-        html <- readFixture "mercari/item.html"
-        let r = extractItem FromCapture "https://jp.mercari.com/item/m94254522440" stamp html
-        r.offer.shipping.source @?= Captured Body
-    ]
+  full = (toReading True draft).offer
 
 -- | テスト用の候補（一覧の値）
 mkCand :: Text -> Text -> Text -> Int -> Sighting
@@ -360,7 +288,6 @@ mkCand siteId url name price =
 mkItem :: Text -> Text -> Int -> Reading
 mkItem url name price =
   toReading
-    FromHttp
     True
     (emptyOffer Body "x" url stamp)
       { name = got JsonLd name
@@ -501,8 +428,8 @@ searchTests =
         res.rechecked @?= [Excluded "--min-price 12000" 1]
     , testCase "一覧の値からの変化は、その1件の注記に入る" $
         concatMap (.notes) (filter (.fromPage) res.findings) @?= ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
-    , testCase "名指しのページ（--url・--page）は、選び方で外さない" $ do
-        let page = Page "https://example.test/9" Nothing Nothing
+    , testCase "名指しのページ（--url）は、選び方で外さない" $ do
+        let page = Page "https://example.test/9" Nothing
             r = Search.assemble accept (Selected [] []) (Selected [] []) ([Checked page (mkItem "https://example.test/9" "付属品" 500) []], []) [] []
         map (.url) r.findings @?= ["https://example.test/9"]
     , testCase "表：読んだものに、支払額・税込価格・送料・在庫・販売者・読んだ時刻が並ぶ" $ do
@@ -510,13 +437,17 @@ searchTests =
             has part = assertBool (toS ("表に無い：" <> part <> "\n" <> t)) (part `T.isInfixOf` t)
         has "確かめた候補1件：確認済み1・一部0"
         has "確認済み\tx\t¥20,000\t¥20,000\t送料無料\t在庫あり\t-\t店\t11/20 23:00\tWH-1000XM5\thttps://example.test/1\t価格 ¥20,500→¥20,000"
-        has "ブラウザで開く：保存したHTMLが要る\tx\t¥21,500"
+        has "ブラウザで開く：HTTP では読めない販路\tx\t¥21,500"
+        has "ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00）\tx\t¥22,000"
         has "何を：一覧で見かけた4件 → --min-price 12000 で0件を外す → 4件。個別ページの値では、--min-price 12000 で1件を外した"
         has ("どこを：カタログの全" <> show (length catalog) <> "販路")
     , testCase "JSON Lines：読んだもの・読めなかったもの・集計の順。どの行にも schema が付く" $ do
         let ls = Report.jsonLines res
             schema l = KM.lookup "schema" =<< (decodeStrict' l :: Maybe (KM.KeyMap Value))
-        map schema ls @?= map (Just . toJSON) (["meguri.result/1", "meguri.unread/1", "meguri.summary/1"] :: [Text])
+        map schema ls @?= map (Just . toJSON) (["meguri.result/1", "meguri.unread/1", "meguri.unread/1", "meguri.summary/1"] :: [Text])
+    , testCase "JSON Lines：ブロックで読めなかったものには、ブロックの事実が付く" $ do
+        let blocks = [KM.lookup "block" o | l <- Report.jsonLines res, Just o <- [decodeStrict' l :: Maybe (KM.KeyMap Value)], KM.lookup "schema" o == Just (toJSON ("meguri.unread/1" :: Text))]
+        blocks @?= [Just (toJSON (Nothing :: Maybe Block)), Just (toJSON akamai)]
     , testCase "個別ページを読まないとき（--read 0）は、一覧で見かけたものを出す" $ do
         let t = Report.table 0 15 (Search.assemble everything (Selected [] []) (Selected cs []) ([], []) [] cs)
         T.isInfixOf "候補（未確認）4件" t @?= True
@@ -526,12 +457,13 @@ searchTests =
   accept = Selection [minPrice 12000] []
   cs = [mkCand "x" ("https://example.test/" <> show n) "WH-1000XM5" (20000 + n * 500) | n <- [1 .. 4 :: Int]]
   page :: Int -> Page
-  page n = Page ("https://example.test/" <> show n) Nothing (find (\c -> c.offer.url == "https://example.test/" <> show n) cs)
+  page n = Page ("https://example.test/" <> show n) (find (\c -> c.offer.url == "https://example.test/" <> show n) cs)
   checked =
     [ Checked (page 1) (mkItem "https://example.test/1" "WH-1000XM5" 20000) ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
     , Checked (page 2) (mkItem "https://example.test/2" "WH-1000XM5" 9000) []
     ]
-  unread = [Unread (page 3) (OpenInBrowser "保存したHTMLが要る")]
+  unread = [Unread (page 3) (OpenInBrowser "HTTP では読めない販路"), Unread (page 4) (SiteBlocked akamai)]
+  akamai = Block {url = "https://example.test/4", status = 403, reason = "HTTP 403", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Nothing, at = stamp}
   res = Search.assemble accept (Selected catalog []) (Selected cs [Excluded "--min-price 12000" 0]) (checked, unread) [] cs
 
 -- | 一覧の fixture を、そのサイトのアダプタで読む
@@ -567,28 +499,28 @@ storeTests =
         (isNothing . (.listX) . adapterFor <$> lookupSite "francfranc", (.tier) <$> lookupSite "francfranc") @?= (Just True, Just HttpItem)
     , testCase "ハンズ：値下げ品は、いまの価格の欄（normal）を読む" $ do
         html <- readFixture "hands/item.html"
-        let r = extractItem FromHttp "https://hands.net/goods/4517161163230/" stamp html
+        let r = extractItem "https://hands.net/goods/4517161163230/" stamp html
         T.isInfixOf "220" html @?= True
         (r.offer.priceIncl.value, r.offer.priceExcl.value, r.offer.keys.jan) @?= (Just (Yen 100), Just (Yen 91), Just "4517161163230")
     , testCase "LOHACO：おすすめの枠の価格と、無効のボタンを読まない" $ do
         html <- readFixture "lohaco/item.html"
-        let r = extractItem FromHttp "https://lohaco.yahoo.co.jp/store/h-lohaco/item/uu42216/" stamp html
+        let r = extractItem "https://lohaco.yahoo.co.jp/store/h-lohaco/item/uu42216/" stamp html
         T.isInfixOf "999" html @?= True
         (r.offer.priceIncl.value, r.offer.shipping.value, r.offer.buy.value, payable r.offer)
           @?= (Just (Yen 61), Just (FreeOver (Yen 3780) (Yen 550)), Just (BuyActive "カートに入れる"), Just (Yen 611))
     , testCase "BUYMA：「関税負担なし」があれば表示価格を支払う額として読む。隠してある「売り切れました」は読まない" $ do
         html <- readFixture "buyma/item.html"
-        let r = extractItem FromHttp "https://www.buyma.com/item/120505097/" stamp html
+        let r = extractItem "https://www.buyma.com/item/120505097/" stamp html
         T.isInfixOf "売り切れました" html @?= True
         (r.offer.priceIncl.value, r.offer.stock.value, r.offer.shipping.value) @?= (Just (Yen 500), Just InStock, Just Free)
     , testCase "BUYMA：「関税負担なし」が無ければ、税込価格は null（額は raw に残す）" $ do
         html <- T.replace "関税負担なし" "" <$> readFixture "buyma/item.html"
-        let r = extractItem FromHttp "https://www.buyma.com/item/120505097/" stamp html
+        let r = extractItem "https://www.buyma.com/item/120505097/" stamp html
         (r.offer.priceIncl.value, r.offer.priceIncl.raw, payable r.offer) @?= (Nothing, Just "500", Nothing)
         r.confirmation @?= Partial ["税込価格"]
     , testCase "au PAY：税抜の印の商品は、税込価格を null にする" $ do
         html <- T.replace "\"isExclusiveTax\": false" "\"isExclusiveTax\": true" . T.replace "\"isInclusiveTax\": true" "\"isInclusiveTax\": false" <$> readFixture "aupay/item.html"
-        let r = extractItem FromHttp "https://wowma.jp/item/745282614" stamp html
+        let r = extractItem "https://wowma.jp/item/745282614" stamp html
         (r.offer.priceIncl.value, r.offer.priceExcl.value) @?= (Nothing, Just (Yen 560))
     ]
 
@@ -657,7 +589,6 @@ rankTests =
   confirmedItem :: Text -> Int -> Stock -> Maybe Text -> Reading
   confirmedItem u p st shared =
     toReading
-      FromHttp
       True
       (emptyOffer Body "x" u stamp)
         { name = got JsonLd "WH-1000XM5"
@@ -674,9 +605,16 @@ fetchTests :: TestTree
 fetchTests =
   testGroup
     "応答の分類"
-    [ testCase "403 はブロック" $ classify 403 "" @?= PageBlocked "HTTP 403"
-    , testCase "429 はブロック" $ classify 429 "" @?= PageBlocked "HTTP 429"
-    , testCase "Access Denied はブロック" $ classify 200 "<html><title>Access Denied</title>" @?= PageBlocked "ボット確認・Access Denied"
+    [ testCase "403 はブロック" $ blockSign 403 "" @?= Just "HTTP 403"
+    , testCase "429 はブロック" $ blockSign 429 "" @?= Just "HTTP 429"
+    , testCase "200 でも、ページの頭に Access Denied があればブロック" $ blockSign 200 "<html><title>Access Denied</title>" @?= Just "ページに「Access Denied」"
+    , testCase "状態コードと目印の両方があれば、両方を根拠にする" $ blockSign 403 "<title>Just a moment...</title>" @?= Just "HTTP 403・ページに「Just a moment...」"
+    , testCase "ふつうのページはブロックではない" $ blockSign 200 "<html>ok" @?= Nothing
+    , testCase "ブロックの事実：ページ・状態コード・根拠・ページの題・Server・Retry-After・取った時刻" $
+        blockOf (deniedPage "https://example.test/a")
+          @?= Just Block {url = "https://example.test/a", status = 403, reason = "HTTP 403・ページに「Access Denied」", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Just "120", at = stamp}
+    , testCase "ブロックでない応答には、ブロックの事実が無い" $
+        blockOf (deniedPage "https://example.test/a") {status = 200, body = "<html><title>商品</title>"} @?= Nothing
     , testCase "メンテナンスは停止" $ classify 503 "ただいまメンテナンス中です" @?= PageStopped "メンテナンスのページ"
     , testCase "200 でも、短い「メンテナンスのお知らせ」のページは停止" $
         classify 200 "<title>メンテナンスのお知らせ</title>DCMオンライン 一時停止のお知らせ" @?= PageStopped "メンテナンスのページ"
@@ -684,6 +622,18 @@ fetchTests =
     , testCase "200 は成功" $ classify 200 "<html>ok" @?= PageOk
     , testCase "500 は失敗" $ classify 500 "<html>error" @?= PageError "HTTP 500"
     ]
+
+-- | テスト用の、ブロックの応答（Akamai の Access Denied）。取った時刻は 'stamp'
+deniedPage :: Text -> Fetched
+deniedPage u =
+  Fetched
+    { url = u
+    , status = 403
+    , contentType = Just "text/html"
+    , headers = [("Server", "AkamaiGHost"), ("Retry-After", "120")]
+    , body = "<html><head><title>Access Denied</title></head><body>You don't have permission</body></html>"
+    , fetchedAt = UTCTime (fromGregorian 2026 11 20) (14 * 3600)
+    }
 
 -- | meguri を同時にいくつ走らせてもよいこと：実行の記録のフォルダ、掃除、同じホストへの順番
 concurrencyTests :: TestTree
@@ -809,6 +759,13 @@ catalogTests =
     , testCase "集計は、サイトごとに1行" $ do
         let cov = [Coverage "rakuten" q k (Found 3 (Just (Yen 100))) Nothing "HTTP" stamp | q <- ["a", "b"], k <- [New, Used]]
         length (T.lines (coverageSummary cov)) @?= 2
+    , testCase "集計：ブロックの行には、根拠・題・Server・時刻と、ブロックされたページのURLが出る。同じブロックは1つにまとめる" $ do
+        let b = Block {url = "https://search.rakuten.co.jp/search/mall/a/", status = 403, reason = "HTTP 403", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Nothing, at = stamp}
+            cov = [Coverage "rakuten" q New (Blocked b) (Just ("https://search.rakuten.co.jp/search/mall/" <> q <> "/")) "HTTP" stamp | q <- ["a", "b"]]
+        T.lines (coverageSummary cov)
+          @?= [ "どこまで探したか：ブロック2（サイト×検索語×種類の行数）"
+              , "rakuten\t「a」新 ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00）\thttps://search.rakuten.co.jp/search/mall/a/"
+              ]
     ]
  where
   covered sel =

@@ -95,9 +95,6 @@ shipPlan pref url = case (.sid) <$> siteForUrl url of
 -- | 記録の送料を、サイトの送料計算の結果に置き換え、判定をやり直す
 applyShipping :: Yen -> Reading -> Reading
 applyShipping fee r =
-  let wrap = case r.offer.shipping.source of
-        ItemPage _ -> ItemPage ShippingCalc
-        Captured _ -> Captured ShippingCalc
-      field = (got wrap (if fee == 0 then Free else Fixed fee)) {note = Just "サイトの送料計算（MEGURI_PREF の配送先まで）"}
+  let field = (got (ItemPage ShippingCalc) (if fee == 0 then Free else Fixed fee)) {note = Just "サイトの送料計算（MEGURI_PREF の配送先まで）"}
       o = r.offer {shipping = field}
    in Reading {offer = o, adapter = r.adapter, confirmation = judge r.adapter o}

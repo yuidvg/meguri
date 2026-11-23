@@ -23,16 +23,24 @@ import Protolude
 readFindings :: Report -> [Finding]
 readFindings r = [e | e <- r.findings, e.fromPage]
 
--- | 読めなかった理由：(種類, 説明)。種類は needs_browser・timed_out・failed
+-- | 読めなかった理由：(種類, 説明)。種類は needs_browser・blocked・timed_out・failed
 unreadWhy :: UnreadReason -> (Text, Text)
 unreadWhy = \case
   OpenInBrowser why -> ("needs_browser", why)
+  SiteBlocked b -> ("blocked", blockShort b <> "（" <> shortStamp b.at <> "）")
   OutOfTime -> ("timed_out", "時間の上限までに順番が来なかった（販路の応答が遅い）。--time で延ばせる")
   Failed why -> ("failed", why)
+
+-- | ブロックされた事実（読めなかった理由がブロックのとき）
+blockOfUnread :: UnreadReason -> Maybe Block
+blockOfUnread = \case
+  SiteBlocked b -> Just b
+  _ -> Nothing
 
 unreadLabel :: Text -> Text
 unreadLabel = \case
   "needs_browser" -> "ブラウザで開く"
+  "blocked" -> "ブロック"
   "timed_out" -> "時間切れ"
   _ -> "失敗"
 
@@ -72,7 +80,7 @@ table reads limit r
             : "理由\tサイト\t一覧の価格\t商品名\tURL"
             : [ T.intercalate
                   "\t"
-                  [ unreadLabel kind <> "：" <> clean 70 why
+                  [ unreadLabel kind <> "：" <> clean 110 why
                   , maybe "-" (\c -> c.offer.site) u.page.sighting
                   , maybe "-" yen (u.page.sighting >>= \c -> c.offer.priceIncl.value)
                   , clean 44 (fromMaybe "(名前なし)" (u.page.sighting >>= \c -> c.offer.name.value))
@@ -150,7 +158,8 @@ resultLine e =
     _ -> ""
 
 -- | JSON Lines：確かめた候補（meguri.result/1）、読めなかった候補（meguri.unread/1）、
--- 集計（meguri.summary/1）、どこまで探したか（meguri.coverage/1）の順
+-- 集計（meguri.summary/1）、どこまで探したか（meguri.coverage/2）の順。
+-- ブロックされたものには、その事実（block：URL・状態コード・根拠・ページの題・Server・Retry-After・時刻）を付ける
 jsonLines :: Report -> [ByteString]
 jsonLines r =
   map (line "meguri.result/1") es
@@ -162,12 +171,13 @@ jsonLines r =
              , "listedPrice" .= (u.page.sighting >>= \c -> c.offer.priceIncl.value)
              , "why" .= kind
              , "reason" .= why
+             , "block" .= blockOfUnread u.why
              ]
        | u <- r.unread
        , let (kind, why) = unreadWhy u.why
        ]
     <> [line "meguri.summary/1" summary]
-    <> map (line "meguri.coverage/1") r.coverage
+    <> map (line "meguri.coverage/2") r.coverage
  where
   es = readFindings r
   summary :: Value

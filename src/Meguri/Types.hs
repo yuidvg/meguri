@@ -15,7 +15,6 @@ module Meguri.Types
   , Method (..)
   , OnPage (..)
   , OnList (..)
-  , PageOrigin (..)
   , Field (..)
   , got
   , gotRaw
@@ -32,11 +31,12 @@ module Meguri.Types
   , Reading (..)
   , Market (..)
   , Status (..)
+  , Block (..)
   , Coverage (..)
   , Confirmation (..)
   ) where
 
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON (..), Options (..), ToJSON (..), defaultOptions, genericParseJSON, genericToEncoding, genericToJSON)
 import Protolude
 
 newtype Yen = Yen Int
@@ -99,22 +99,25 @@ data Method
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | 個別ページだけが持てる出どころ
-data OnPage
-  = -- | HTTP で取った個別ページ
-    ItemPage Method
-  | -- | 通常のブラウザで保存した個別ページ
-    Captured Method
+-- | 個別ページだけが持てる出どころ（HTTP で取った個別ページの、どこから読んだか）
+newtype OnPage = ItemPage Method
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+
+-- JSON は {"tag":"ItemPage","contents":…} の形のままにする
+instance ToJSON OnPage where
+  toJSON = genericToJSON tagged
+  toEncoding = genericToEncoding tagged
+
+instance FromJSON OnPage where
+  parseJSON = genericParseJSON tagged
+
+tagged :: Options
+tagged = defaultOptions {tagSingleConstructors = True}
 
 -- | 一覧・APIの出どころ（確認済みにはならない）
 data OnList = SearchList | Api Text
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
-
-data PageOrigin = FromHttp | FromCapture
-  deriving stock (Eq, Show)
 
 -- | 出どころつきの値。読めなかったら @value = Nothing@ で、@note@ に理由を書く。
 data Field s a = Field
@@ -247,12 +250,35 @@ data Status
   = -- | 件数と最安（税込価格）
     Found Int (Maybe Yen)
   | Zero
-  | Blocked Text
+  | -- | この実行で取りに行って、ブロックされた
+    Blocked Block
+  | -- | カタログの記録で、どの方法でも読めなかった販路。取りに行っていない（確かめた日と注記）
+    BlockedBefore Text Text
   | NeedsBrowser Text
   | -- | 日付と注記
     Stopped Text Text
   | OutOfScope Text
   | Error Text
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- | ブロックされた事実：どのページで、何を見てブロックと決めたか。応答の手がかりも添える
+data Block = Block
+  { -- | ブロックされたページ
+    url :: Text
+  , -- | HTTP の状態コード
+    status :: Int
+  , -- | ブロックと決めた根拠（「HTTP 403」、「ページに「Access Denied」」など）
+    reason :: Text
+  , -- | ページの題
+    title :: Maybe Text
+  , -- | 応答の Server ヘッダ。どこの仕組みが止めたかの手がかり（AkamaiGHost・cloudflare など）
+    server :: Maybe Text
+  , -- | 応答の Retry-After ヘッダ（429 のとき、いつまで待てばよいか）
+    retryAfter :: Maybe Text
+  , -- | ページを取った時刻（JST）
+    at :: Text
+  }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 

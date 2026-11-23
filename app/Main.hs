@@ -47,7 +47,7 @@ data Command
   | -- | 枠ごとに標準出力に出す数つき
     CmdSearch Common Search.Request Int
   | CmdSold Common [Text] Int (Selection Seen)
-  | CmdItem Common Text (Maybe FilePath)
+  | CmdItem Common Text
   | CmdShip Common Text
   | CmdCheck Common Bool Bool [Text]
   | CmdRecall Common [Text] Int
@@ -126,8 +126,8 @@ acceptP =
 
 searchP :: Parser Command
 searchP =
-  ( \c terms markets parts reads urls saved secs limit ->
-      let pages = [Page u (Just p) Nothing | (u, p) <- saved] <> [Page u Nothing Nothing | u <- urls]
+  ( \c terms markets parts reads urls secs limit ->
+      let pages = [Page u Nothing | u <- urls]
        in CmdSearch
             c
             Search.Request
@@ -146,7 +146,6 @@ searchP =
     <*> many ((Left <$> channelP) <|> (Right <$> acceptP))
     <*> option auto (long "read" <> metavar "N" <> value 3 <> help "どこまで：探している物と認めたもののうち、販路と新品・中古の組ごとに安い順で N 件の個別ページを読む（既定は 3。0 なら一覧だけ）")
     <*> many (strOption (long "url" <> metavar "URL" <> help "どこを：この個別ページも読んで、結果に入れる（検索がJSで描画される販路で、ブラウザで見つけた商品など）"))
-    <*> many (option (eitherReader readPage) (long "page" <> metavar "URL=FILE" <> help "どこを：通常のブラウザで保存したHTMLを、そのURLの個別ページとして読んで、結果に入れる"))
     <*> option auto (long "time" <> metavar "秒" <> value 60 <> help "どこまで：全体にかける時間の上限（既定は 60）。過ぎたら、読めた分だけで返し、読めなかったものを「時間切れ」として出す")
     <*> option auto (long "limit" <> metavar "N" <> value 15 <> help "枠ごとに標準出力に出す数（既定は 15）")
  where
@@ -155,11 +154,6 @@ searchP =
     "used" -> Right [Used]
     "all" -> Right []
     other -> Left ("market は new・used・all のどれか：" <> other)
-  -- URL にも = が入るので、最後の = で分ける
-  readPage :: [Char] -> Either [Char] (Text, FilePath)
-  readPage s = case T.breakOnEnd "=" (toS s) of
-    (u, p) | not (T.null p) && T.length u > 1 -> Right (T.dropEnd 1 u, toS p)
-    _ -> Left "--page は URL=ファイル の形で書く"
 
 commands :: Parser Command
 commands =
@@ -190,7 +184,6 @@ commands =
     CmdItem
       <$> common
       <*> strArgument (metavar "URL" <> help "個別ページのURL")
-      <*> optional (strOption (long "html" <> metavar "FILE" <> help "通常のブラウザで保存したHTML（取りに行かず、これを読む）"))
   soldP =
     (\c qs n parts -> CmdSold c qs n (selection parts))
       <$> common
@@ -221,8 +214,6 @@ dispatch = \case
     _ -> sitesTable
   CmdSearch c req limit -> do
     needKey (map (.by) req.query.accept.judges <> map (.by) req.scope.channels.judges)
-    missing <- filterM (fmap not . doesFileExist) (mapMaybe (.saved) req.scope.pages)
-    for_ (head missing) $ \p -> usage ("--page のファイルが無い：" <> toS p)
     paths <- getPaths
     purgeOld paths
     (rid, dir) <- newRun paths
@@ -234,7 +225,7 @@ dispatch = \case
       Left e -> judgeFailed e
       Right res -> do
         -- 実行の記録（書くだけ。あとのコマンドは読まない）
-        writeLines (dir </> "coverage.jsonl") (map (line "meguri.coverage/1") res.coverage)
+        writeLines (dir </> "coverage.jsonl") (map (line "meguri.coverage/2") res.coverage)
         writeLines (dir </> "sightings.jsonl") (map (line "meguri.sighting/1") res.sightings)
         writeLines (dir </> "readings.jsonl") [line "meguri.reading/1" x.reading | x <- res.checked]
         let foot = "実行の記録 " <> rid <> "：" <> toS dir <> "（readings.jsonl＝読んだ個別ページの全項目と出どころ、sightings.jsonl＝一覧で見かけた売り物の全部、coverage.jsonl、pages/＝取ったページ。7日で消える）\n"
@@ -262,15 +253,11 @@ dispatch = \case
         FJsonl -> traverse_ (BC.putStrLn . line "meguri.sold/1") (cheapestFirst shown.chosen)
         _ -> TIO.putStr (soldTable limit shown.chosen <> "\n" <> coverageSummary cov)
     exitByCoverage cov
-  CmdItem c url saved -> do
+  CmdItem c url -> do
     paths <- getPaths
     f <- newFetcher paths.locksDir Nothing
     pref <- getPref
-    r <- readItemShipped f pref url saved
-    case r of
-      Left (ItemUsage e) -> usage e
-      Left (ItemFetch e) -> hPutStrLn stderr ("meguri: " <> e) >> exitWith (ExitFailure 3)
-      Right rec -> printItem c rec
+    readItemShipped f pref url >>= either itemFailed (printItem c)
   CmdCheck c write everything only -> do
     paths <- getPaths
     purgeOld paths
@@ -299,10 +286,9 @@ dispatch = \case
       _ -> do
         paths <- getPaths
         f <- newFetcher paths.locksDir Nothing
-        r <- readItemShipped f pref url Nothing
+        r <- readItemShipped f pref url
         case r of
-          Left (ItemUsage e) -> usage e
-          Left (ItemFetch e) -> hPutStrLn stderr ("meguri: " <> e) >> exitWith (ExitFailure 3)
+          Left e -> itemFailed e
           Right rec -> do
             printItem c rec
             -- 送料が計算の結果に置き換わっていなければ、問い合わせに失敗している
@@ -318,12 +304,12 @@ dispatch = \case
       now <- jstStamp <$> getCurrentTime
       let text p = snd (decodeBody p.contentType p.body)
           one site method page parseOk = case page of
-            Left e -> (Coverage site q New (Error e) Nothing method now, [])
+            Left (FetchBlocked b) -> (Coverage site q New (Blocked b) Nothing method now, [])
+            Left (FetchFailed e) -> (Coverage site q New (Error e) Nothing method now, [])
             Right p -> case classify p.status (text p) of
               PageOk ->
                 let rs = parseOk (jstStamp p.fetchedAt) (text p)
                  in (Coverage site q New (if null rs then Zero else Found (length rs) Nothing) Nothing method (jstStamp p.fetchedAt), rs)
-              PageBlocked why -> (Coverage site q New (Blocked why) Nothing method now, [])
               PageStopped why -> (Coverage site q New (Stopped (T.take 10 now) why) Nothing method now, [])
               PageNotFound -> (Coverage site q New (Error "HTTP 404") Nothing method now, [])
               PageError why -> (Coverage site q New (Error why) Nothing method now, [])
@@ -348,6 +334,12 @@ dispatch = \case
     _ -> TIO.putStr (readingReport rec)
   usage :: Text -> IO a
   usage msg = hPutStrLn stderr ("meguri: " <> msg) >> exitWith (ExitFailure 2)
+  -- 取りに行かない販路は使い方の誤り（2）。ブロック・取得の失敗は 3
+  itemFailed :: ItemError -> IO a
+  itemFailed = \case
+    ItemUsage e -> usage e
+    ItemBlocked b -> hPutStrLn stderr ("meguri: ブロックされた：" <> blockShort b <> "（" <> b.at <> " に " <> b.url <> " を取ったとき）") >> exitWith (ExitFailure 3)
+    ItemFetch e -> hPutStrLn stderr ("meguri: " <> e) >> exitWith (ExitFailure 3)
   -- 標準出力は 30KB 以内に収める。収まらなければ、枠ごとの行数を減らす。
   -- それでも収まらなければ（検索語が多いとき）、行を切って、続きは実行の記録に任せる
   fitted :: (Int -> Text) -> Int -> Text

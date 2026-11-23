@@ -7,7 +7,6 @@ module Meguri.Sites
 
 import Meguri.Catalog
 import Meguri.Site.BookOff qualified as BookOff
-import Meguri.Site.Captured qualified as Captured
 import Meguri.Site.Common (Adapter, noAdapter)
 import Meguri.Site.DirectStores qualified as DirectStores
 import Meguri.Site.HardOff qualified as HardOff
@@ -54,15 +53,6 @@ adapterFor s = case s.adapter of
   "cado" -> DirectStores.cado
   "okoku" -> DirectStores.okoku
   "akachan" -> DirectStores.akachan
-  "yodobashi" -> Captured.yodobashi
-  "amazon" -> Captured.amazon
-  "mercari" -> Captured.mercari
-  "2ndstreet" -> Captured.secondStreet
-  "yamada" -> Captured.yamada
-  "ksdenki" -> Captured.ksdenki
-  "nitori" -> Captured.nitori
-  "janpara" -> Captured.janpara
-  "ebay" -> Captured.ebay
   _ -> noAdapter
 
 -- | 個別ページのURLの形から、サイトを引く。

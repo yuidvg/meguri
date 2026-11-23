@@ -26,9 +26,7 @@ import System.Timeout (timeout)
 -- | 読む個別ページ
 data Page = Page
   { url :: Text
-  , -- | 通常のブラウザで保存したHTML（あれば、取りに行かずにこれを読む）
-    saved :: Maybe FilePath
-  , -- | 一覧で見かけたもの。'Nothing' なら、名指しで渡されたページ（--url・--page）
+  , -- | 一覧で見かけたもの。'Nothing' なら、名指しで渡されたページ（--url）
     sighting :: Maybe Sighting
   }
 
@@ -51,8 +49,10 @@ data Unread = Unread
   }
 
 data UnreadReason
-  = -- | HTTP では読めない。ブラウザで開いて、保存したHTMLを --page で渡す
+  = -- | 取りに行かなかった。HTTP では読めない販路（カタログ）か、価格.com の転送URL
     OpenInBrowser Text
+  | -- | ブロックされた
+    SiteBlocked Block
   | Failed Text
   | -- | 時間の上限までに順番が来なかった（販路の応答が遅い）
     OutOfTime
@@ -67,7 +67,7 @@ cheapest n = go Map.empty . cheapestFirst
     let k = (c.offer.site, c.market)
         used = Map.findWithDefault (0 :: Int) k seen
      in if used < n
-          then Page c.offer.url Nothing (Just c) : go (Map.insert k (used + 1) seen) cs
+          then Page c.offer.url (Just c) : go (Map.insert k (used + 1) seen) cs
           else go seen cs
 
 -- | 価格.com の転送URL。アフィリエイトの中継を通るので、自動では取りに行かない
@@ -80,14 +80,15 @@ readPages :: Fetcher -> Maybe Pref -> Maybe UTCTime -> [Page] -> IO ([Checked], 
 readPages f pref deadline pages = partitionEithers <$> mapConcurrently one pages
  where
   one p
-    | isNothing p.saved && tracked p.url =
-        pure (Right (Unread p (OpenInBrowser "価格.com の転送URL（アフィリエイトの中継を通る）なので、取りに行かない。開いて確かめる")))
+    | tracked p.url =
+        pure (Right (Unread p (OpenInBrowser "価格.com の転送URL（アフィリエイトの中継を通る）なので、取りに行かない")))
     | otherwise = do
-        r <- within (readItemShipped f pref p.url p.saved)
+        r <- within (readItemShipped f pref p.url)
         pure $ case r of
           Nothing -> Right (Unread p OutOfTime)
           Just (Right reading) -> Left (Checked p reading (maybe [] (`driftFrom` reading) p.sighting))
           Just (Left (ItemUsage why)) -> Right (Unread p (OpenInBrowser why))
+          Just (Left (ItemBlocked b)) -> Right (Unread p (SiteBlocked b))
           Just (Left (ItemFetch why)) -> Right (Unread p (Failed why))
   within act = case deadline of
     Nothing -> Just <$> act
