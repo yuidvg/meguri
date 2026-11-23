@@ -116,6 +116,7 @@ goldenTests =
     , itemGolden "rakuten" "item" "https://item.rakuten.co.jp/cocohouse/nb08qd1ckcd/"
     , itemGolden "rakuten" "item-2ndstreet" "https://item.rakuten.co.jp/jumblestore/2238010018076/"
     , listGolden "yahoo-shopping" "search" "https://shopping.yahoo.co.jp/search?p=WH-1000XM5&X=2&used=1" 200
+    , listGolden "yahoo-shopping" "zero" "https://shopping.yahoo.co.jp/search?p=NA-LX127C&X=2&used=1" 200
     , itemGolden "yahoo-shopping" "item" "https://store.shopping.yahoo.co.jp/eco-sty/503763141.html"
     , listGolden "yahuoku" "search" "https://auctions.yahoo.co.jp/search/search?p=WH-1000XM5&s1=cbids&o1=a" 200
     , listGolden "yahuoku" "search-flea" "https://auctions.yahoo.co.jp/search/search?p=NA-LX127CR&s1=cbids&o1=a" 200

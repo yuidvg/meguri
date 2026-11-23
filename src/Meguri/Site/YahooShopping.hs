@@ -20,7 +20,7 @@ listPage :: ListCtx -> Tags -> Text -> ListOut
 listPage ctx ts html =
   ListOut
     { offers = nubBy ((==) `on` (.url)) (mapMaybe one beacons)
-    , zero = textHas ["に一致する商品は見つかりませんでした", "条件に一致する商品は見つかりませんでした", "一致する商品はありません"] html
+    , zero = textHas ["に一致する商品は見つかりませんでした", "条件に一致する商品は見つかりませんでした", "一致する商品が見つかりませんでした", "一致する商品はありません"] html
     , follow = []
     }
  where
