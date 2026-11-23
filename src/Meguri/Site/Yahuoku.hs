@@ -28,6 +28,9 @@ listPage ctx ts _ = case atPath ["props", "pageProps", "initialState", "search",
   one v = do
     aid <- str =<< at "auctionId" v
     let b k = at k v == Just (Bool True)
+        -- Yahoo!フリマの出品（z…）。ヤフオクの検索にも出るが、ページは Yahoo!フリマにある（ヤフオクのURLでは404になる）
+        flea = b "isFleamarketItem" || "z" `T.isPrefixOf` aid
+        url = if flea then "https://paypayfleamarket.yahoo.co.jp/item/" <> aid else "https://auctions.yahoo.co.jp/jp/auction/" <> aid
         price = Yen <$> (int =<< at "price" v)
         buyNow = int =<< at "buyNowPrice" v
         fee = int =<< at "currentPriceShippingFee" v
@@ -35,7 +38,7 @@ listPage ctx ts _ = case atPath ["props", "pageProps", "initialState", "search",
         ends = fromMaybe "" (str =<< at "endTime" v)
         bidCount = fromMaybe 0 (int =<< at "bidCount" v)
     pure
-      (listOffer ctx ("https://auctions.yahoo.co.jp/jp/auction/" <> aid))
+      (listOffer ctx url)
         { name = slMaybe "商品名が読めなかった" (str =<< at "title" v)
         , priceIncl =
             (if closed then withNote "落札価格" else maybe identity (\n -> withNote ("即決 " <> show n <> "円")) buyNow)
@@ -55,8 +58,8 @@ listPage ctx ts _ = case atPath ["props", "pageProps", "initialState", "search",
         , seller = slMaybe "出品者名は一覧では伏せ字" (mfilter (T.any (/= '*')) (str =<< atPath ["seller", "displayName"] v))
         , image = slMaybe "画像なし" (T.takeWhile (/= '?') <$> (str =<< at "imageUrl" v))
         , condition = slMaybe "状態の表示なし" (str =<< at "itemCondition" v)
-        , -- Yahoo!フリマの出品（z…）は、Yahoo!フリマの検索にも同じ番号で出る
-          keys = noKeys {siteItemId = Just aid, sharedStockId = if b "isFleamarketItem" || "z" `T.isPrefixOf` aid then Just aid else Nothing}
+        , -- Yahoo!フリマの出品は、Yahoo!フリマの検索にも同じ番号で出る
+          keys = noKeys {siteItemId = Just aid, sharedStockId = if flea then Just aid else Nothing}
         }
 
 itemPage :: ItemCtx -> Draft -> Draft

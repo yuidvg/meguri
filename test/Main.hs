@@ -118,6 +118,7 @@ goldenTests =
     , listGolden "yahoo-shopping" "search" "https://shopping.yahoo.co.jp/search?p=WH-1000XM5&X=2&used=1" 200
     , itemGolden "yahoo-shopping" "item" "https://store.shopping.yahoo.co.jp/eco-sty/503763141.html"
     , listGolden "yahuoku" "search" "https://auctions.yahoo.co.jp/search/search?p=WH-1000XM5&s1=cbids&o1=a" 200
+    , listGolden "yahuoku" "search-flea" "https://auctions.yahoo.co.jp/search/search?p=NA-LX127CR&s1=cbids&o1=a" 200
     , listGolden "yahuoku" "closedsearch" "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=WH-1000XM5" 200
     , itemGolden "yahuoku" "item" "https://auctions.yahoo.co.jp/jp/auction/f1252794818"
     , listGolden "paypayfleamarket" "search" "https://paypayfleamarket.yahoo.co.jp/search/WH-1000XM5?open=1&sort=price&order=asc" 200

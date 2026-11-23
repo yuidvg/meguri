@@ -1,0 +1,198 @@
+{
+    "follow": [],
+    "offers": [
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "USED20"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0210/user/d136e21623150d65d11d623d22861613ab38534ab38d88987168b28f0885425e/i-img900x1200-17930847895543qd3ito34.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": null,
+                "siteItemId": "1249947384"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "【リコール対応済み】2024年製 Panasonic パナソニック NA-LX127CR ドラム式洗濯乾燥機 12kg 右開き"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 135000
+            },
+            "seller": {
+                "note": "出品者名は一覧では伏せ字",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": "落札者負担。額は一覧に無い",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "BuyerPays"
+                }
+            },
+            "site": "yahuoku",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "bids": 0,
+                    "endsAt": "2026-11-24T22:26:21+09:00",
+                    "tag": "Auction"
+                }
+            },
+            "url": "https://auctions.yahoo.co.jp/jp/auction/1249947384"
+        },
+        {
+            "at": "2026-11-20T23:00:00+09:00",
+            "buy": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "condition": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "USED20"
+            },
+            "image": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "https://auc-pctr.c.yimg.jp/i/auctions.c.yimg.jp/images.auctions.yahoo.co.jp/image/dr000/auc0210/users/1f35b252710ae206476523228f329278131f857f/i-img900x1200-17930853937589lv94n.jpg"
+            },
+            "keys": {
+                "jan": null,
+                "model": null,
+                "sharedStockId": "z712208474",
+                "siteItemId": "z712208474"
+            },
+            "name": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": "【リコール対応済み】24年製 Panasonic NA-LX127CR ドラム式洗濯乾燥機 右開き"
+            },
+            "points": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceExcl": {
+                "note": "読めなかった",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "priceIncl": {
+                "note": "即決 143600円",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": 143600
+            },
+            "seller": {
+                "note": "出品者名は一覧では伏せ字",
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": null
+            },
+            "shipping": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Free"
+                }
+            },
+            "site": "yahuoku",
+            "stock": {
+                "note": null,
+                "raw": null,
+                "source": {
+                    "tag": "SearchList"
+                },
+                "value": {
+                    "tag": "Selling"
+                }
+            },
+            "url": "https://paypayfleamarket.yahoo.co.jp/item/z712208474"
+        }
+    ],
+    "zero": false
+}
