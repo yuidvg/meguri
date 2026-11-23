@@ -6,7 +6,9 @@ module Meguri.Report
   , markdown
   ) where
 
-import Data.Aeson (Value, object, (.=))
+import Data.Aeson (ToJSON, Value (..), object, toJSON, (.=))
+import Data.Aeson.KeyMap qualified as KM
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Meguri.Arrange (Finding (..), frameLabel)
 import Meguri.Catalog (catalog)
@@ -16,33 +18,29 @@ import Meguri.Render
 import Meguri.Run (line)
 import Meguri.Text (clean, shortStamp)
 import Meguri.Types
-import Meguri.Read (Page (..), Unread (..), UnreadReason (..))
+import Meguri.Read (Checked (..), Page (..), Unread (..))
 import Protolude
 
 -- | 個別ページを読んだもの
 readFindings :: Report -> [Finding]
 readFindings r = [e | e <- r.findings, e.fromPage]
 
--- | 読めなかった理由：(種類, 説明)。種類は needs_browser・blocked・timed_out・failed
-unreadWhy :: UnreadReason -> (Text, Text)
+-- | 読めなかった理由。取りに行かなかったなら、その理由。取りに行ったなら、うまくいかなかった最初の取得
+data Why = Why
+  { -- | 種類：needs_browser・blocked_before・blocked・stopped・timed_out・failed など
+    kind :: Text
+  , -- | 説明（分け方の名前は付けない）
+    reason :: Text
+  , -- | 「ブロック：…」の形
+    short :: Text
+  }
+
+unreadWhy :: Did -> Why
 unreadWhy = \case
-  OpenInBrowser why -> ("needs_browser", why)
-  SiteBlocked b -> ("blocked", blockShort b <> "（" <> shortStamp b.at <> "）")
-  OutOfTime -> ("timed_out", "時間の上限までに順番が来なかった（販路の応答が遅い）。--time で延ばせる")
-  Failed why -> ("failed", why)
-
--- | ブロックされた事実（読めなかった理由がブロックのとき）
-blockOfUnread :: UnreadReason -> Maybe Block
-blockOfUnread = \case
-  SiteBlocked b -> Just b
-  _ -> Nothing
-
-unreadLabel :: Text -> Text
-unreadLabel = \case
-  "needs_browser" -> "ブラウザで開く"
-  "blocked" -> "ブロック"
-  "timed_out" -> "時間切れ"
-  _ -> "失敗"
+  Skipped why -> Why (skipKind why) (skipText why) (skipShort why)
+  Tried as -> case head (troubles as) of
+    Just a -> Why (failureKind a) (troubleText a) (troubleShort a)
+    Nothing -> Why "failed" "読めなかった" "失敗：読めなかった"
 
 -- | 表（既定の出力）。reads は、販路と新品・中古の組ごとに読んだ個別ページの数。limit は、枠ごとに出す行数
 table :: Int -> Int -> Report -> Text
@@ -80,14 +78,13 @@ table reads limit r
             : "理由\tサイト\t一覧の価格\t商品名\tURL"
             : [ T.intercalate
                   "\t"
-                  [ unreadLabel kind <> "：" <> clean 110 why
+                  [ (unreadWhy u.did).short
                   , maybe "-" (\c -> c.offer.site) u.page.sighting
                   , maybe "-" yen (u.page.sighting >>= \c -> c.offer.priceIncl.value)
                   , clean 44 (fromMaybe "(名前なし)" (u.page.sighting >>= \c -> c.offer.name.value))
                   , clean 200 u.page.url
                   ]
               | u <- take (limit * 2) unread
-              , let (kind, why) = unreadWhy u.why
               ]
   rest = length [e | e <- r.findings, not e.fromPage]
   restLine
@@ -157,29 +154,37 @@ resultLine e =
     Partial ms -> "（" <> T.intercalate "・" ms <> "なし）"
     _ -> ""
 
--- | JSON Lines：確かめた候補（meguri.result/1）、読めなかった候補（meguri.unread/1）、
--- 集計（meguri.summary/1）、どこまで探したか（meguri.coverage/2）の順。
--- ブロックされたものには、その事実（block：URL・状態コード・根拠・ページの題・Server・Retry-After・時刻）を付ける
+-- | JSON Lines：確かめた候補（meguri.result/2）、読めなかった候補（meguri.unread/2）、
+-- 集計（meguri.summary/1）、どこまで探したか（meguri.coverage/3）の順。
+--
+-- 確かめた候補と読めなかった候補には、取得の並び（attempts）が付く。読めなかった候補には、
+-- 取りに行かなかった理由（skipped）か、うまくいかなかった取得が入る。ブロックの事実（block）は、その取得の中にある
 jsonLines :: Report -> [ByteString]
 jsonLines r =
-  map (line "meguri.result/1") es
-    <> [ line "meguri.unread/1" $
-           object
+  [line "meguri.result/2" (withPairs e ["attempts" .= Map.findWithDefault [] e.url attemptsByUrl]) | e <- es]
+    <> [ line "meguri.unread/2" $
+           withPairs
+             u.did
              [ "url" .= u.page.url
              , "site" .= fmap (\c -> c.offer.site) u.page.sighting
              , "name" .= (u.page.sighting >>= \c -> c.offer.name.value)
              , "listedPrice" .= (u.page.sighting >>= \c -> c.offer.priceIncl.value)
-             , "why" .= kind
-             , "reason" .= why
-             , "block" .= blockOfUnread u.why
+             , "why" .= why.kind
+             , "reason" .= why.reason
              ]
        | u <- r.unread
-       , let (kind, why) = unreadWhy u.why
+       , let why = unreadWhy u.did
        ]
     <> [line "meguri.summary/1" summary]
-    <> map (line "meguri.coverage/2") r.coverage
+    <> map (line "meguri.coverage/3") r.coverage
  where
   es = readFindings r
+  attemptsByUrl = Map.fromList [(c.reading.offer.url, c.attempts) | c <- r.checked]
+  -- JSON の対象に、項目を足す
+  withPairs :: ToJSON a => a -> [(KM.Key, Value)] -> Value
+  withPairs a pairs = case toJSON a of
+    Object o -> Object (KM.union (KM.fromList pairs) o)
+    v -> v
   summary :: Value
   summary =
     object
@@ -197,4 +202,4 @@ jsonLines r =
 
 -- | Markdown：候補（確認済み）・未確認の候補・どこまで探したか、の3つの表
 markdown :: Int -> Report -> Text
-markdown limit r = renderMd limit r.findings r.coverage
+markdown limit r = renderMd limit r.findings (Map.fromList [(u.page.url, (unreadWhy u.did).short) | u <- r.unread]) r.coverage

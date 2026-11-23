@@ -4,14 +4,17 @@
 -- 全体の同時数は、プロセスごとに8。
 --
 -- 403・429・ボット確認・Access Denied の応答はブロックとして、その事実（'Block'）を返す。
+--
+-- 取りに行くところは、どれも 'attempt' を通す（検索の1ページ目・続き・語を広げた検索・個別ページ・送料の問い合わせ・診断）。
+-- 取りに行ったことと、その結果（'Attempt'）が、必ず1つ返る。
 module Meguri.Fetch.Http
   ( Fetcher
   , newFetcher
   , takeTurn
   , Fetched (..)
-  , FetchError (..)
-  , fetchPage
-  , fetchReq
+  , Loaded (..)
+  , attempt
+  , page
   , Req (..)
   , hostOf
   , blockSign
@@ -32,12 +35,12 @@ import Data.List (lookup)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (UTCTime, diffUTCTime, getCurrentTime)
 import Meguri.Extract.Html (parse, titleText)
 import Meguri.Fetch.Encoding (decodeBody)
 import Meguri.Sanitize (publicUrl)
 import Meguri.Text (clean, jstStamp)
-import Meguri.Types (Block (..))
+import Meguri.Types (Attempt (..), Block (..), Outcome (..), Role)
 import Network.HTTP.Client
 import Data.Default (def)
 import Network.Connection (TLSSettings (..))
@@ -48,6 +51,7 @@ import Protolude hiding (try)
 import System.Directory (createDirectoryIfMissing)
 import System.FileLock (SharedExclusive (..), lockFile, unlockFile)
 import System.FilePath ((</>))
+import System.Timeout (timeout)
 
 version :: Text
 version = "0.1.0"
@@ -115,8 +119,50 @@ data Req = Req
     private :: Bool
   }
 
-fetchPage :: Fetcher -> Text -> IO (Either FetchError Fetched)
-fetchPage f u = fetchReq f (Req u Nothing False)
+-- | ふつうのページ（GET。実行の記録に残してよいもの）
+page :: Text -> Req
+page u = Req u Nothing False
+
+-- | 取れたページの中身（文字コードを直したもの）
+data Loaded = Loaded
+  { text :: Text
+  , -- | HTTP の状態コード
+    status :: Int
+  , -- | 取った時刻（JST）
+    at :: Text
+  }
+
+-- | 1ページを取りに行く。取得（'Attempt'）と、取れたならページの中身を返す。
+--
+-- 中身が返るのは、読めるページ（'Got'）と 404（'NotFound'）のとき。0件のページを 404 で返すサイトがあるので、404 も読ませる。
+-- 期限があれば、過ぎたところでやめて 'TimedOut' とする（順番を待っているあいだも数える）。
+-- 配送先を含む問い合わせ（'private'）は、URL の ? より前だけを取得に残す。
+attempt :: Fetcher -> Maybe UTCTime -> Role -> Req -> IO (Attempt, Maybe Loaded)
+attempt f deadline role req = do
+  r <- within (fetchReq f req)
+  now <- jstStamp <$> getCurrentTime
+  let shown = if req.private then T.takeWhile (/= '?') req.url else req.url
+      made at outcome = Attempt {role, url = shown, at, outcome, listed = Nothing}
+  pure $ case r of
+    Nothing -> (made now TimedOut, Nothing)
+    Just (Left (FetchBlocked b)) -> (made b.at (Blocked (Block shown b.status b.reason b.title b.server b.retryAfter b.at)), Nothing)
+    Just (Left (FetchFailed e)) -> (made now (Failed e), Nothing)
+    Just (Right p) ->
+      let text = snd (decodeBody p.contentType p.body)
+          at = jstStamp p.fetchedAt
+          loaded = Just (Loaded text p.status at)
+       in case classify p.status text of
+            PageOk -> (made at Got, loaded)
+            PageNotFound -> (made at NotFound, loaded)
+            PageStopped why -> (made at (Stopped why), Nothing)
+            PageError why -> (made at (Failed why), Nothing)
+ where
+  within act = case deadline of
+    Nothing -> Just <$> act
+    Just d -> do
+      now <- getCurrentTime
+      let left = realToFrac (diffUTCTime d now) :: Double
+      if left <= 0 then pure Nothing else timeout (ceiling (left * 1000000)) act
 
 fetchReq :: Fetcher -> Req -> IO (Either FetchError Fetched)
 fetchReq f r

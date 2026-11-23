@@ -4,12 +4,12 @@ module Meguri.List
   ( Lookup (..)
   , Wider (..)
   , widen
-  , widenedNote
   , hasAll
   , lookups
   , searchUrl
   , listAll
   , listThen
+  , settle
   ) where
 
 import Control.Concurrent.Async (mapConcurrently)
@@ -18,7 +18,7 @@ import Data.Char (isAsciiLower, isAsciiUpper)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Meguri.Catalog
-import Data.Time (UTCTime, diffUTCTime, getCurrentTime)
+import Data.Time (UTCTime, getCurrentTime)
 import Meguri.Extract.Html (Tags, parse)
 import Meguri.Fetch.Encoding
 import Meguri.Fetch.Http
@@ -28,7 +28,6 @@ import Meguri.Sites
 import Meguri.Text (contains, jstStamp, percentEncode, toHalfWidth)
 import Meguri.Types
 import Protolude
-import System.Timeout (timeout)
 
 -- | 検索1回：1つの販路に、1つの語を、新品か中古のどちらかで当てる
 data Lookup = Lookup
@@ -37,16 +36,17 @@ data Lookup = Lookup
   , market :: Market
   , -- | 検索URL。組み立てられないサイトは 'Nothing'
     url :: Maybe Text
-  , -- | 取りに行かずに決まる結果（対象外・種類が合わない など）
-    fixed :: Maybe Status
+  , -- | 取りに行かないと、初めから決まっているときの理由（対象外・種類が合わない など）
+    fixed :: Maybe Skip
   , -- | 語を広げた検索も当たるとき、その検索
     wider :: Maybe Wider
   }
 
--- | 語を広げた検索：広げた語の検索URLと、その結果から残すものの条件（題に、この語を全部含む）。
+-- | 語を広げた検索：広げた語と、その検索URLと、結果から残すものの条件（題に、この語を全部含む）。
 -- 比べ方は @--has@ と同じ（大文字小文字・全角半角・空白・ハイフンの違いは無視）
 data Wider = Wider
-  { url :: Text
+  { term :: Text
+  , url :: Text
   , has :: [Text]
   }
 
@@ -67,16 +67,6 @@ widen q =
         front = T.dropWhileEnd letter half
      in if T.length front < T.length half && not (T.null front) && isDigit (T.last front) then Just front else Nothing
   letter c = isAsciiUpper c || isAsciiLower c
-
--- | 語を広げて探したことの説明。広げた語ごとに1行（表の下に出す）
-widenedNote :: [Lookup] -> Text
-widenedNote js =
-  T.unlines
-    [ "「" <> q <> "」は、" <> T.intercalate "・" sids <> " で「" <> w <> "」でも探し、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した"
-    | q <- ordNub [j.term | j <- js, isJust j.wider]
-    , Just (w, has) <- [widen q]
-    , let sids = ordNub [j.channel.sid | j <- js, j.term == q, isJust j.wider]
-    ]
 
 -- | 検索語を、サイトの文字コードで % エンコードして、ひな形に入れる
 searchUrl :: Enc -> Text -> Text -> Text
@@ -105,7 +95,7 @@ lookups terms markets = concatMap siteJobs
           guard s.widenCodes
           template <- t
           (w, has) <- widen q
-          pure (Wider (searchUrl s.enc template w) has)
+          pure (Wider w (searchUrl s.enc template w) has)
         new = mk New s.searchNew
         used = mk Used s.searchUsed
         defaultKind = if KNew `elem` s.kinds then New else Used
@@ -131,114 +121,115 @@ listAll f jobs = do
   pure (cov, cands)
 
 -- | 仕事を並列に走らせ、一覧が取れた仕事から順に、その候補で続きの作業（個別ページの確認など）をする。
--- 期限を過ぎた仕事は、そこでやめて「時間切れ」と記録する。
+-- 期限を過ぎたら、取りに行くのをそこでやめる。それまでに取れた分は残り、やめた取得は「時間切れ」と残る。
 listThen :: Fetcher -> Maybe UTCTime -> [Lookup] -> ([Sighting] -> IO a) -> IO ([Coverage], [Sighting], [a])
 listThen f deadline jobs next = do
   blocked <- newTVarIO Map.empty
   results <- mapConcurrently (one blocked) jobs
-  pure (map (\(c, _, _) -> c) results, concatMap (\(_, cs, _) -> cs) results, mapMaybe (\(_, _, a) -> a) results)
+  pure (map (\(c, _, _) -> c) results, concatMap (\(_, cs, _) -> cs) results, map (\(_, _, a) -> a) results)
  where
   one blocked j = do
-    listed <- within (runJob f blocked j)
-    case listed of
-      Just (cov, cands) -> do
-        a <- next cands
-        pure (cov, cands, Just a)
-      Nothing -> do
-        now <- jstStamp <$> getCurrentTime
-        pure (Coverage {site = j.channel.sid, term = j.term, market = j.market, status = Error "時間切れ（--time で延ばせる）", url = j.url, method = "HTTP", at = now}, [], Nothing)
-  within act = case deadline of
-    Nothing -> Just <$> act
-    Just d -> do
-      now <- getCurrentTime
-      let left = realToFrac (diffUTCTime d now) :: Double
-      if left <= 0 then pure Nothing else timeout (ceiling (left * 1000000)) act
+    (cov, cands) <- runJob f deadline blocked j
+    a <- next cands
+    pure (cov, cands, a)
 
-runJob :: Fetcher -> TVar (Map Text Block) -> Lookup -> IO (Coverage, [Sighting])
-runJob f blocked j = do
+-- | 検索1回。取りに行かない販路は、その理由を返す。取りに行く販路は、取得の並びと、残した売り物を返す
+runJob :: Fetcher -> Maybe UTCTime -> TVar (Map Text Block) -> Lookup -> IO (Coverage, [Sighting])
+runJob f deadline blocked j = do
   now <- jstStamp <$> getCurrentTime
-  let covAt at status method = Coverage {site = j.channel.sid, term = j.term, market = j.market, status, url = j.url, method, at}
-      cov = covAt now
+  let row at did cheapest method = Coverage {site = j.channel.sid, term = j.term, market = j.market, url = j.url, did, cheapest, method, at}
+      skip why method = pure (row now (Skipped why) Nothing method, [])
       hint = fromMaybe "" (head j.channel.hints)
       listX = (adapterFor j.channel).listX
       entry = fromMaybe "検索URLなし" j.channel.searchNote
   case (j.fixed, j.channel.tier, j.url, listX) of
-    (Just st, _, _, _) -> pure (cov st "カタログ", [])
-    (_, TierOutOfScope, _, _) -> pure (cov (OutOfScope hint) "カタログ", [])
-    (_, TierStopped why, _, _) -> pure (cov (Stopped (show j.channel.checked) why) "カタログ（日を改めて開き直す）", [])
-    (_, TierBlocked, _, _) -> pure (cov (BlockedBefore (show j.channel.checked) hint) "カタログ", [])
+    (Just why, _, _, _) -> skip why "カタログ"
+    (_, TierOutOfScope, _, _) -> skip (OutOfScope hint) "カタログ"
+    (_, TierStopped why, _, _) -> skip (StoppedBefore (show j.channel.checked) why) "カタログ（日を改めて開き直す）"
+    (_, TierBlocked, _, _) -> skip (BlockedBefore (show j.channel.checked) hint) "カタログ"
     (_, Http, Just u, Just ex) -> do
-      already <- Map.lookup (hostOf u) <$> readTVarIO blocked
-      case already of
-        Just b -> pure (cov (Blocked b) "HTTP", [])
-        Nothing -> fetchList f blocked j u ex covAt
-    (_, Http, Just _, Nothing) -> pure (cov (NeedsBrowser "HTTPで取れるが、アダプタがまだ無い") "ブラウザで開く", [])
-    (_, Http, Nothing, _) -> pure (cov (NeedsBrowser entry) "ブラウザで開く", [])
-    (_, HttpItem, _, _) -> pure (cov (NeedsBrowser (maybe "検索はJS描画。個別ページはHTTPで読める（見つけた商品のURLを --url で渡す）" (const entry) j.channel.searchNote)) "ブラウザで開く", [])
-    (_, BrowserJs, _, _) -> pure (cov (NeedsBrowser (maybe "JSの描画が要る（ヘッドレスでよい）" (const entry) j.channel.searchNote)) "ブラウザで開く", [])
-    (_, BrowserNormal, _, _) -> pure (cov (NeedsBrowser (maybe "画面ありの通常のブラウザが要る" (const entry) j.channel.searchNote)) "通常のブラウザで開く", [])
+      (as, kept) <- fetchList f deadline blocked j u ex
+      let cands = [Sighting {term = j.term, market = j.market, offer = x, via} | (via, x) <- kept]
+          cheapest = minimumMay (mapMaybe (\(_, x) -> x.priceIncl.value) kept)
+      -- 確認時刻は、最初のページを取った時刻
+      pure (row (maybe now (.at) (head as)) (Tried as) cheapest "HTTP", cands)
+    (_, Http, Just _, Nothing) -> skip (NeedsBrowser "HTTPで取れるが、アダプタがまだ無い") "ブラウザで開く"
+    (_, Http, Nothing, _) -> skip (NeedsBrowser entry) "ブラウザで開く"
+    (_, HttpItem, _, _) -> skip (NeedsBrowser (maybe "検索はJS描画。個別ページはHTTPで読める（見つけた商品のURLを --url で渡す）" (const entry) j.channel.searchNote)) "ブラウザで開く"
+    (_, BrowserJs, _, _) -> skip (NeedsBrowser (maybe "JSの描画が要る（ヘッドレスでよい）" (const entry) j.channel.searchNote)) "ブラウザで開く"
+    (_, BrowserNormal, _, _) -> skip (NeedsBrowser (maybe "画面ありの通常のブラウザが要る" (const entry) j.channel.searchNote)) "通常のブラウザで開く"
 
+-- | 検索1回で取るページを、順に取りに行く：1ページ目、続きのページ、語を広げた検索。
+-- 取得の並び（した順）と、残した売り物（見かけたページつき）を返す。
+--
+-- 1ページ目が取れなければ、そこでやめる。続きのページと語を広げた検索は、取れなくても、ほかで取れた分を残す。
 fetchList
   :: Fetcher
+  -> Maybe UTCTime
   -> TVar (Map Text Block)
   -> Lookup
   -> Text
   -> (ListCtx -> Tags -> Text -> ListOut)
-  -> (Text -> Status -> Text -> Coverage)
-  -> IO (Coverage, [Sighting])
-fetchList f blocked j u ex covAt = do
-  first <- one u
-  case first of
-    Left st -> do
+  -> IO ([Attempt], [(Via, Offer OnList)])
+fetchList f deadline blocked j u ex = do
+  already <- Map.lookup (hostOf u) <$> readTVarIO blocked
+  case already of
+    -- 同じホストが、この実行でもうブロックされていたら、取りに行かない
+    Just b -> do
       now <- jstStamp <$> getCurrentTime
-      pure (covAt now st "HTTP", [])
-    -- 確認時刻は、ページを取った時刻
-    Right (out, (method, fetched)) -> do
-      -- 続きのページ（価格.com のショップ一覧など）。失敗しても、取れた分は残す
-      more <- followAll (4 :: Int) out.follow
-      -- 語を広げた検索。題に語を含むもののうち、まだ無いものを足す。失敗しても、取れた分は残す
-      wide <- maybe (pure []) widerOffers j.wider
-      let found = out.offers <> concatMap (.offers) more
-          added = [x | x <- wide, x.url `notElem` map (.url) found]
-          offers = [tidyOffer x | x <- found <> added, usableUrl x.url]
-          cands = [Sighting {term = j.term, market = j.market, offer = x} | x <- offers]
-          cheapest = minimumMay (mapMaybe (\x -> x.priceIncl.value) offers)
-          status
-            | not (null offers) = Found (length offers) cheapest
-            | out.zero = Zero
-            | otherwise = Error "一覧から1件も抜き出せなかった（ページの作りが変わったかもしれない）"
-      pure (covAt fetched status method, cands)
+      pure ([Attempt {role = SearchPage, url = u, at = now, outcome = HostBlocked b, listed = Nothing}], [])
+    Nothing -> do
+      first <- load SearchPage u
+      case first of
+        (a, Nothing) -> pure ([a], [])
+        (_, Just out) -> do
+          -- 続きのページ（価格.com のショップ一覧など）
+          more <- followAll (4 :: Int) out.follow
+          -- 語を広げた検索。時間切れのあとは、取りに行かない
+          wide <-
+            if any (\(a, _) -> a.outcome == TimedOut) more
+              then pure []
+              else traverse (\w -> load (WiderPage w.term w.has) w.url) (maybeToList j.wider)
+          pure (settle (first : more <> wide))
  where
-  widerOffers w = do
-    r <- one w.url
-    pure $ case r of
-      Right (o, _) -> filter (hasAll w.has) o.offers
-      Left _ -> []
-  -- 続きのページは、1つの仕事につき4ページまで
+  -- 続きのページは、1つの検索につき4ページまで
   followAll _ [] = pure []
   followAll budget (t : ts)
     | budget <= 0 = pure []
     | otherwise = do
-        r <- one t
-        case r of
-          Right (o, _) -> (o :) <$> followAll (budget - 1) (ts <> o.follow)
-          Left _ -> followAll (budget - 1) ts
-  one target = do
-    r <- fetchPage f target
-    case r of
-      Left (FetchBlocked b) -> do
-        atomically (modifyTVar' blocked (Map.insert (hostOf target) b))
-        pure (Left (Blocked b))
-      Left (FetchFailed e) -> pure (Left (Error e))
-      Right p -> do
-        let (_, text) = decodeBody p.contentType p.body
-            ctx = ListCtx {siteId = j.channel.sid, term = j.term, market = j.market, pageUrl = target, httpStatus = p.status, stamp = jstStamp p.fetchedAt}
-            out = ex ctx (parse text) text
-            method = ("HTTP" :: Text, jstStamp p.fetchedAt)
-        case classify p.status text of
-          PageStopped why -> pure (Left (Stopped (T.take 10 (jstStamp p.fetchedAt)) why))
-          PageError why -> pure (Left (Error why))
-          PageNotFound
-            | out.zero -> pure (Right (out, method))
-            | otherwise -> pure (Left (Error "HTTP 404"))
-          PageOk -> pure (Right (out, method))
+        r@(a, out) <- load FollowPage t
+        if a.outcome == TimedOut
+          then pure [r]
+          else (r :) <$> followAll (budget - 1) (ts <> maybe [] (.follow) out)
+  -- 1ページを取りに行って、一覧を読む。ブロックされたら、そのホストを覚える
+  load role target = do
+    (a, loaded) <- attempt f deadline role (page target)
+    case a.outcome of
+      Blocked b -> atomically (modifyTVar' blocked (Map.insert (hostOf target) b))
+      _ -> pure ()
+    pure . (a,) $ do
+      p <- loaded
+      let ctx = ListCtx {siteId = j.channel.sid, term = j.term, market = j.market, pageUrl = target, httpStatus = p.status, stamp = p.at}
+          out = ex ctx (parse p.text) p.text
+      -- 404 のページは、サイトが「該当なし」と返したときだけ読む
+      guard (a.outcome == Got || out.zero)
+      pure out
+
+-- | 取れたページから、残す売り物を決める（純粋）。取得には、読めた数と残した数を書き込む。
+--
+-- URLの形が正しくないものは残さない。語を広げた検索からは、題にもとの語を全部含み、まだ出ていないものだけを残す。
+settle :: [(Attempt, Maybe ListOut)] -> ([Attempt], [(Via, Offer OnList)])
+settle pages = (map fst done, concatMap snd done)
+ where
+  done = go [] pages
+  go _ [] = []
+  go seen ((a, read) : rest) = case read of
+    Nothing -> (a, []) : go seen rest
+    Just out ->
+      let keep x =
+            usableUrl x.url && case a.role of
+              WiderPage _ has -> hasAll has x && x.url `notElem` seen
+              _ -> True
+          kept = [tidyOffer x | x <- out.offers, keep x]
+          listed = Just Listed {offers = length out.offers, zero = out.zero, kept = length kept}
+       in (a {listed}, [(Via a.role a.url, x) | x <- kept]) : go (seen <> map (.url) out.offers) rest

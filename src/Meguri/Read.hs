@@ -4,7 +4,6 @@ module Meguri.Read
   , named
   , Checked (..)
   , Unread (..)
-  , UnreadReason (..)
   , cheapest
   , tracked
   , readPages
@@ -14,14 +13,13 @@ module Meguri.Read
 import Control.Concurrent.Async (mapConcurrently)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Data.Time (UTCTime, diffUTCTime, getCurrentTime)
+import Data.Time (UTCTime)
 import Meguri.Fetch.Http (Fetcher)
 import Meguri.Item
 import Meguri.Render (cheapestFirst, shippingShort, stockShort, yen)
 import Meguri.Ship (Pref)
 import Meguri.Types
 import Protolude
-import System.Timeout (timeout)
 
 -- | 読む個別ページ
 data Page = Page
@@ -40,22 +38,16 @@ data Checked = Checked
   , reading :: Reading
   , -- | 一覧の値と違っていたところ
     drift :: [Text]
+  , -- | 取得の並び：個別ページと、送料を問い合わせたならその問い合わせ
+    attempts :: [Attempt]
   }
 
 -- | 個別ページを読めなかったもの
 data Unread = Unread
   { page :: Page
-  , why :: UnreadReason
+  , -- | 取りに行かなかった（HTTP では読めない販路・価格.com の転送URL）か、取りに行って読めなかった（その取得）
+    did :: Did
   }
-
-data UnreadReason
-  = -- | 取りに行かなかった。HTTP では読めない販路（カタログ）か、価格.com の転送URL
-    OpenInBrowser Text
-  | -- | ブロックされた
-    SiteBlocked Block
-  | Failed Text
-  | -- | 時間の上限までに順番が来なかった（販路の応答が遅い）
-    OutOfTime
 
 -- | 読む個別ページを選ぶ：販路と新品・中古の組ごとに、安い順で n 件。
 -- 同じURLと、同じ在庫（共通の在庫番号）は1つに数える。
@@ -75,27 +67,19 @@ tracked :: Text -> Bool
 tracked u = any (`T.isPrefixOf` u) ["https://c.kakaku.com/forwarder/", "http://c.kakaku.com/forwarder/", "https://kakaku.com/ksearch/jump/"]
 
 -- | 対象の個別ページを、並列に読む（同じホストへは1本ずつ・2秒おき。"Meguri.Fetch.Http" が守る）。
--- 同じホストの中は、渡した順（安い順）に読む。期限までに読めなかったものは、そう記録する。
+-- 同じホストの中は、渡した順（安い順）に読む。期限までに読めなかったものは、その取得が「時間切れ」になる。
 readPages :: Fetcher -> Maybe Pref -> Maybe UTCTime -> [Page] -> IO ([Checked], [Unread])
 readPages f pref deadline pages = partitionEithers <$> mapConcurrently one pages
  where
   one p
     | tracked p.url =
-        pure (Right (Unread p (OpenInBrowser "価格.com の転送URL（アフィリエイトの中継を通る）なので、取りに行かない")))
+        pure (Right (Unread p (Skipped (NeedsBrowser "価格.com の転送URL（アフィリエイトの中継を通る）なので、取りに行かない"))))
     | otherwise = do
-        r <- within (readItemShipped f pref p.url)
+        r <- readItemShipped f deadline pref p.url
         pure $ case r of
-          Nothing -> Right (Unread p OutOfTime)
-          Just (Right reading) -> Left (Checked p reading (maybe [] (`driftFrom` reading) p.sighting))
-          Just (Left (ItemUsage why)) -> Right (Unread p (OpenInBrowser why))
-          Just (Left (ItemBlocked b)) -> Right (Unread p (SiteBlocked b))
-          Just (Left (ItemFetch why)) -> Right (Unread p (Failed why))
-  within act = case deadline of
-    Nothing -> Just <$> act
-    Just d -> do
-      now <- getCurrentTime
-      let left = realToFrac (diffUTCTime d now) :: Double
-      if left <= 0 then pure Nothing else timeout (ceiling (left * 1000000)) act
+          ItemRead reading as -> Left (Checked p reading (maybe [] (`driftFrom` reading) p.sighting) as)
+          ItemSkipped why -> Right (Unread p (Skipped why))
+          ItemUnread as -> Right (Unread p (Tried as))
 
 -- | 一覧の値と、個別ページの値の違い（個別ページの方を採る）
 driftFrom :: Sighting -> Reading -> [Text]

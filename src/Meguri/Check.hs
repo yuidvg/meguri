@@ -15,13 +15,12 @@ import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Meguri.Catalog
 import Meguri.Extract.Html (Tags, absUrl, attr, parse)
-import Meguri.Fetch.Encoding (decodeBody)
 import Meguri.Fetch.Http
 import Meguri.Health (Health (..))
 import Meguri.Item
 import Meguri.Sanitize (usableUrl)
 import Meguri.List (searchUrl)
-import Meguri.Render (blockShort)
+import Meguri.Render (blockShort, troubleText)
 import Meguri.Site.Common
 import Meguri.Sites
 import Meguri.Text (clean, decodeEntities, jstStamp)
@@ -57,21 +56,22 @@ checkSite f day everything s = case s.tier of
   TierStopped _ -> case s.home of
     Nothing -> pure (h "停止中（入口のURLなし）" "—" True)
     Just u -> do
-      r <- fetchPage f u
-      pure $ case r of
-        Left (FetchBlocked b) -> h ("入口：ブロック（" <> blockShort b <> "）") "—" True
-        Left (FetchFailed e) -> h ("入口：つながらない（" <> e <> "）") "—" True
-        Right p -> case classify p.status (text p) of
-          PageStopped why -> h ("入口：停止中のまま（" <> why <> "）") "—" True
-          PageOk -> h "入口：HTTP 200（再開したかもしれない。開いて確かめる）" "—" False
-          PageNotFound -> h "入口：HTTP 404" "—" True
-          PageError why -> h ("入口：" <> why) "—" True
+      (a, _) <- attempt f Nothing SearchPage (page u)
+      pure $ case a.outcome of
+        Stopped why -> h ("入口：停止中のまま（" <> why <> "）") "—" True
+        Got -> h "入口：HTTP 200（再開したかもしれない。開いて確かめる）" "—" False
+        _ -> h ("入口：" <> said a) "—" True
   t
     | browserTier t && not everything -> pure (h "ブラウザの段（HTTPでは当てない）" "—" True)
     | otherwise -> probe
  where
   h search item ok = Health {sid = s.sid, day, search = clean 90 search, item = clean 90 item, asExpected = ok}
-  text p = snd (decodeBody p.contentType p.body)
+  -- 取れなかった取得の言い方
+  said a = case a.outcome of
+    Blocked b -> "ブロック（" <> blockShort b <> "）"
+    Stopped why -> "停止中（" <> why <> "）"
+    NotFound -> "HTTP 404"
+    _ -> troubleText a
   browserTier t = t `elem` [BrowserJs, BrowserNormal, TierBlocked]
   http = s.tier == Http
   adapter = adapterFor s
@@ -82,26 +82,25 @@ checkSite f day everything s = case s.tier of
     (searchText, links, searchOk) <- case target of
       Nothing -> pure ("検索：URLなし", [], True)
       Just u -> do
-        r <- fetchPage f u
-        pure $ case r of
-          Left (FetchBlocked b) -> ("検索：ブロック（" <> blockShort b <> "）", [], browserTier s.tier)
-          Left (FetchFailed e) -> ("検索：つながらない（" <> e <> "）", [], not http && s.tier /= HttpItem)
-          Right p ->
-            let body = text p
-                ts = parse body
-             in case (classify p.status body, adapter.listX) of
-                  (PageStopped why, _) -> ("検索：停止中（" <> why <> "）", [], False)
-                  (PageError why, _) -> ("検索：" <> why, [], browserTier s.tier)
-                  (cls, Just ex) | http ->
-                    let out = ex (ListCtx s.sid s.sample kind u p.status (jstStamp p.fetchedAt)) ts body
+        (a, loaded) <- attempt f Nothing SearchPage (page u)
+        pure $ case loaded of
+          Nothing -> case a.outcome of
+            Stopped _ -> ("検索：" <> said a, [], False)
+            _ -> ("検索：" <> said a, [], browserTier s.tier)
+          Just p ->
+            let ts = parse p.text
+                missing = a.outcome == NotFound
+             in case adapter.listX of
+                  Just ex | http ->
+                    let out = ex (ListCtx s.sid s.sample kind u p.status p.at) ts p.text
                         urls = [o.url | o <- out.offers]
                      in if
                           | not (null urls) -> ("検索：取得" <> show (length urls) <> "件", urls, True)
                           | out.zero -> ("検索：0件（見本の語「" <> s.sample <> "」で出ない）", [], False)
-                          | cls == PageNotFound -> ("検索：HTTP 404", [], False)
+                          | missing -> ("検索：HTTP 404", [], False)
                           | otherwise -> ("検索：1件も抜き出せない（作りが変わったかもしれない）", [], False)
-                  (PageNotFound, _) -> ("検索：HTTP 404", [], browserTier s.tier)
-                  (PageOk, _) ->
+                  _ | missing -> ("検索：HTTP 404", [], browserTier s.tier)
+                  _ ->
                     let ls = itemLinks s u ts
                      in if
                           | browserTier s.tier && not (null ls) -> ("検索：HTTP 200・商品リンク" <> show (length ls) <> "（HTTPで読めるようになったかもしれない）", ls, False)
@@ -111,9 +110,9 @@ checkSite f day everything s = case s.tier of
     (itemText, itemOk) <- case head links <|> s.sampleItem of
       Nothing -> pure ("個別：見本なし", True)
       Just u -> do
-        r <- readItem f u
+        r <- readItem f Nothing u
         pure $ case r of
-          Right rec -> case rec.confirmation of
+          ItemRead rec _ -> case rec.confirmation of
             Confirmed -> ("個別：確認済み", True)
             Partial ms ->
               let missing = filter (not . T.isPrefixOf "アダプタ") ms
@@ -121,9 +120,8 @@ checkSite f day everything s = case s.tier of
                   , True
                   )
             Unconfirmed -> ("個別：何も読めない", False)
-          Left (ItemUsage _) -> ("個別：HTTPでは読まない", True)
-          Left (ItemBlocked b) -> ("個別：ブロック（" <> blockShort b <> "）", browserTier s.tier)
-          Left (ItemFetch e) -> ("個別：" <> e, browserTier s.tier)
+          ItemSkipped _ -> ("個別：HTTPでは読まない", True)
+          ItemUnread as -> ("個別：" <> maybe "読めない" said (head as), browserTier s.tier)
     pure (h searchText itemText (searchOk && itemOk))
 
 -- | 診断の表：1サイト1行

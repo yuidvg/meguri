@@ -3,20 +3,19 @@ module Meguri.Item
   ( extractItem
   , readItem
   , readItemShipped
-  , ItemError (..)
+  , ItemResult (..)
   ) where
 
 import Meguri.Catalog (Channel (..), Tier (..), tierLabel)
 import Meguri.Confirm (toReading)
 import Meguri.Extract.Generic (genericDraft)
+import Data.Time (UTCTime)
 import Meguri.Extract.Html (parse)
-import Meguri.Fetch.Encoding (decodeBody)
 import Meguri.Fetch.Http
 import Meguri.Sanitize (tidyOffer)
 import Meguri.Ship (Pref, ShipPlan (..), applyShipping, shipPlan)
 import Meguri.Site.Common
 import Meguri.Sites
-import Meguri.Text (jstStamp)
 import Meguri.Types
 import Protolude
 
@@ -32,44 +31,46 @@ extractItem url stamp html =
         Just f -> toReading True (tidyOffer (f (ItemCtx url ts html) base))
         Nothing -> toReading False (tidyOffer base)
 
-data ItemError
-  = -- | 取りに行く前に分かること（カタログで、HTTP では読めないと分かっている販路）
-    ItemUsage Text
-  | -- | ブロックされた
-    ItemBlocked Block
-  | -- | 取りに行って失敗した
-    ItemFetch Text
+-- | 個別ページを読みに行った結果
+data ItemResult
+  = -- | 取りに行かなかった（カタログで、HTTP では読めないと分かっている販路）
+    ItemSkipped Skip
+  | -- | 取りに行ったが、読めなかった。その取得
+    ItemUnread [Attempt]
+  | -- | 読めた。取得は、個別ページと、送料を問い合わせたならその問い合わせ
+    ItemRead Reading [Attempt]
 
 -- | 個別ページを取りに行って読む
-readItem :: Fetcher -> Text -> IO (Either ItemError Reading)
-readItem f url = case siteForUrl url of
+readItem :: Fetcher -> Maybe UTCTime -> Text -> IO ItemResult
+readItem f deadline url = case siteForUrl url of
   Just c
     | c.tier `elem` [BrowserJs, BrowserNormal] ->
-        pure (Left (ItemUsage ("HTTP では読めない販路（カタログ：" <> tierLabel c.tier <> "、" <> show c.checked <> " に確かめた）なので、取りに行かない")))
+        pure (ItemSkipped (NeedsBrowser ("HTTP では読めない販路（カタログ：" <> tierLabel c.tier <> "、" <> show c.checked <> " に確かめた）なので、取りに行かない")))
     | c.tier == TierBlocked ->
-        pure (Left (ItemUsage ("どの方法でも読めなかった販路（カタログ、" <> show c.checked <> " に確かめた）なので、取りに行かない")))
+        pure (ItemSkipped (BlockedBefore (show c.checked) "どの方法でも読めなかった販路（カタログ）なので、取りに行かない"))
   _ -> do
-    r <- fetchPage f url
-    pure $ case r of
-      Left (FetchBlocked b) -> Left (ItemBlocked b)
-      Left (FetchFailed e) -> Left (ItemFetch e)
-      Right p ->
-        let (_, html) = decodeBody p.contentType p.body
-         in case classify p.status html of
-              PageOk -> Right (extractItem url (jstStamp p.fetchedAt) html)
-              PageNotFound -> Left (ItemFetch "HTTP 404（ページが無い。売り切れて消えたかもしれない）")
-              PageStopped why -> Left (ItemFetch ("停止中：" <> why))
-              PageError why -> Left (ItemFetch why)
+    (a, loaded) <- attempt f deadline DetailPage (page url)
+    pure $ case (a.outcome, loaded) of
+      (Got, Just p) -> ItemRead (extractItem url p.at p.text) [a]
+      _ -> ItemUnread [a]
 
 -- | 'readItem' に加えて、配送先（MEGURI_PREF）が決まっていて、送料を計算できるサイトなら、
--- 送料を問い合わせて記録に入れる。問い合わせに失敗したら、記録はそのまま返す。
-readItemShipped :: Fetcher -> Maybe Pref -> Text -> IO (Either ItemError Reading)
-readItemShipped f pref url = do
-  r <- readItem f url
+-- 送料を問い合わせて記録に入れる。
+--
+-- 問い合わせを取れなければ、記録の送料はページの値のままで、問い合わせの取得がその結果を持つ。
+-- 応答は取れたが送料を読めなければ、送料の項目の注記に、そう書く。
+readItemShipped :: Fetcher -> Maybe UTCTime -> Maybe Pref -> Text -> IO ItemResult
+readItemShipped f deadline pref url = do
+  r <- readItem f deadline url
   case (r, pref >>= (`shipPlan` url)) of
-    (Right rec, Just plan) -> do
-      page <- fetchReq f plan.req
-      pure . Right $ case page of
-        Right p | Just fee <- plan.readFee (snd (decodeBody p.contentType p.body)) -> applyShipping fee rec
-        _ -> rec
+    (ItemRead rec as, Just plan) -> do
+      (a, loaded) <- attempt f deadline ShipQuery plan.req
+      pure $ case loaded >>= \p -> plan.readFee p.text of
+        Just fee -> ItemRead (applyShipping fee rec) (as <> [a])
+        Nothing | isJust loaded -> ItemRead (unreadFee rec) (as <> [a])
+        Nothing -> ItemRead rec (as <> [a])
     _ -> pure r
+ where
+  unreadFee rec =
+    let o = rec.offer {shipping = withNote "送料の問い合わせの応答から、送料を読めなかった" rec.offer.shipping}
+     in Reading {offer = o, adapter = rec.adapter, confirmation = rec.confirmation}

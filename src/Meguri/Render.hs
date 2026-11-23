@@ -7,7 +7,14 @@ module Meguri.Render
   , sightingTable
   , soldTable
   , coverageSummary
+  , statusShort
   , blockShort
+  , roleLabel
+  , troubleText
+  , troubleShort
+  , troubleNote
+  , skipText
+  , skipShort
   , readingReport
   , confirmationText
   , confirmationMark
@@ -111,16 +118,108 @@ offerTable label remark limit cs =
           : "サイト\t支払額\t送料\t在庫\t商品名\tURL"
           : map sightingLine shown
 
-statusShort :: Status -> Text
-statusShort = \case
-  Found n low -> "取得" <> show n <> "件" <> maybe "" (\y -> "・最安" <> yen y) low
+-- 取得の結果の呼び方 ----------------------------------------------------------
+--
+-- 「どこまで探したか」・読めなかった個別ページ・注記のどれも、同じ言い方を使う。
+
+-- | 取得の役割の呼び名
+roleLabel :: Role -> Text
+roleLabel = \case
+  SearchPage -> "検索"
+  FollowPage -> "続きのページ"
+  WiderPage w _ -> "「" <> w <> "」での検索"
+  DetailPage -> "個別ページ"
+  ShipQuery -> "送料の問い合わせ"
+
+-- | うまくいかなかった取得の分け方：ブロック・停止中・時間切れ・失敗
+troubleLabel :: Attempt -> Text
+troubleLabel a = case a.outcome of
+  Got -> "取得"
+  Blocked _ -> "ブロック"
+  HostBlocked _ -> "ブロック"
+  Stopped _ -> "停止中"
+  TimedOut -> "時間切れ"
+  NotFound -> "失敗"
+  Failed _ -> "失敗"
+
+-- | うまくいかなかった取得の説明（分け方の名前は付けない）
+troubleText :: Attempt -> Text
+troubleText a = case a.outcome of
+  Got -> ""
+  Blocked b -> blockShort b <> "（" <> shortStamp b.at <> "）"
+  HostBlocked b -> "同じサイトが、この実行でもうブロックされていたので、取りに行かなかった（" <> shortStamp b.at <> " に " <> b.reason <> "）"
+  Stopped why -> why <> "（" <> T.take 10 a.at <> "）"
+  TimedOut
+    | a.role == DetailPage -> "時間の上限までに順番が来なかった（販路の応答が遅い）。--time で延ばせる"
+    | otherwise -> "時間の上限までに終わらなかった。--time で延ばせる"
+  NotFound
+    | a.role == DetailPage -> "HTTP 404（ページが無い。売り切れて消えたかもしれない）"
+    | otherwise -> "HTTP 404"
+  Failed why -> why
+
+-- | 「ブロック：HTTP 403・…（時刻）」の形
+troubleShort :: Attempt -> Text
+troubleShort a = troubleLabel a <> "：" <> clean 110 (troubleText a)
+
+-- | 何の取得がうまくいかなかったかも付ける：「送料の問い合わせは、ブロック：…」
+troubleNote :: Attempt -> Text
+troubleNote a = roleLabel a.role <> "は、" <> troubleShort a
+
+-- | 取りに行かなかった理由の分け方：対象外・ブラウザで開く・ブロック・停止中
+skipBucket :: Skip -> Text
+skipBucket = \case
+  OutOfScope _ -> "対象外"
+  NeedsBrowser _ -> "ブラウザで開く"
+  BlockedBefore _ _ -> "ブロック"
+  StoppedBefore _ _ -> "停止中"
+
+-- | 取りに行かなかった理由の説明
+skipText :: Skip -> Text
+skipText = \case
+  OutOfScope why -> why
+  NeedsBrowser why -> why
+  BlockedBefore _ why -> why
+  StoppedBefore _ why -> why
+
+-- | 「ブラウザで開く：…」「ブロック（日付 に確かめた）：…」の形
+skipShort :: Skip -> Text
+skipShort s = label <> "：" <> clean 110 (skipText s)
+ where
+  label = case s of
+    BlockedBefore day _ -> "ブロック（" <> day <> " に確かめた）"
+    StoppedBefore day _ -> "停止中（" <> day <> "）"
+    _ -> skipBucket s
+
+-- | 検索1回の状態を、1つの言い方にする。
+--
+-- もとになる状態（取得n件・0件・ブロック など）のあとに、うまくいかなかったほかの取得と、語を広げて探したことを添える
+statusShort :: Coverage -> Text
+statusShort c = base <> T.concat (ordNub (others <> widened))
+ where
+  as = attemptsOf c.did
+  st = statusOf c
+  base = case st of
+    Found n low -> "取得" <> show n <> "件" <> maybe "" (\y -> "・最安" <> yen y) low
+    Zero -> "0件"
+    Unfetched a
+      | a.role == SearchPage -> troubleShort a
+      | otherwise -> troubleShort a <> "（" <> roleLabel a.role <> "）"
+    Unreadable -> "失敗：一覧から1件も抜き出せなかった（ページの作りが変わったかもしれない）"
+    NotTried why -> skipShort why
+  cause = case st of
+    Unfetched a -> Just a
+    _ -> Nothing
+  others = ["（" <> troubleNote a <> "）" | a <- troubles as, Just a /= cause]
+  widened = ["（「" <> w <> "」でも探し、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した）" | a <- as, fine a, WiderPage w has <- [a.role]]
+
+-- | 状態の分け方（集計の見出し）
+bucketOf :: Coverage -> Text
+bucketOf c = case statusOf c of
+  Found _ _ -> "取得"
   Zero -> "0件"
-  Blocked b -> "ブロック：" <> clean 90 (blockShort b) <> "（" <> shortStamp b.at <> "）"
-  BlockedBefore day why -> "ブロック（" <> day <> " に確かめた）：" <> clean 50 why
-  NeedsBrowser why -> "ブラウザで開く：" <> clean 60 why
-  Stopped day why -> "停止中（" <> day <> "）：" <> clean 50 why
-  OutOfScope why -> "対象外：" <> clean 50 why
-  Error why -> "失敗：" <> clean 60 why
+  Unfetched a -> troubleLabel a
+  Unreadable -> "失敗"
+  NotTried why -> skipBucket why
 
 -- | ブロックと決めた根拠と、応答の手がかり（ページの題・Server・Retry-After）。題が根拠の目印と同じなら、重ねて書かない
 blockShort :: Block -> Text
@@ -132,12 +231,18 @@ blockShort b =
       <> ["Retry-After " <> r | Just r <- [b.retryAfter]]
 
 -- | 行に添えるURL：ブロックならブロックされたページ、ブラウザで開く・停止中なら検索URL
-linkOf :: Coverage -> Maybe Text
-linkOf c = case c.status of
-  Blocked b -> Just b.url
-  NeedsBrowser _ -> c.url
-  Stopped _ _ -> c.url
-  _ -> Nothing
+linksOf :: Coverage -> [Text]
+linksOf c = ordNub (maybeToList main <> [b.url | a <- attemptsOf c.did, Blocked b <- [a.outcome]])
+ where
+  main = case statusOf c of
+    Unfetched a -> case a.outcome of
+      Blocked b -> Just b.url
+      HostBlocked b -> Just b.url
+      Stopped _ -> c.url
+      _ -> Nothing
+    NotTried (NeedsBrowser _) -> c.url
+    NotTried (StoppedBefore _ _) -> c.url
+    _ -> Nothing
 
 marketShort :: Market -> Text
 marketShort = \case
@@ -151,16 +256,7 @@ coverageSummary cov =
     ("どこまで探したか：" <> T.intercalate "・" [k <> show n | (k, n) <- counts, n > 0] <> "（サイト×検索語×種類の行数）")
       : map siteLine grouped
  where
-  bucket c = case c.status of
-    Found _ _ -> "取得" :: Text
-    Zero -> "0件"
-    Blocked _ -> "ブロック"
-    BlockedBefore _ _ -> "ブロック"
-    NeedsBrowser _ -> "ブラウザで開く"
-    Stopped _ _ -> "停止中"
-    OutOfScope _ -> "対象外"
-    Error _ -> "失敗"
-  counts = [(k, length (filter ((== k) . bucket) cov)) | k <- ["取得", "0件", "ブラウザで開く", "ブロック", "停止中", "対象外", "失敗"]]
+  counts = [(k, length (filter ((== k) . bucketOf) cov)) | k <- ["取得", "0件", "ブラウザで開く", "ブロック", "停止中", "対象外", "時間切れ", "失敗"]]
   order = nubBy (==) (map (.site) cov)
   bySite = Map.fromListWith (flip (<>)) [(c.site, [c]) | c <- cov]
   grouped = [(s, Map.findWithDefault [] s bySite) | s <- order]
@@ -168,15 +264,12 @@ coverageSummary cov =
     let many = length (nubBy (==) (map (.term) rows)) > 1
         -- 価格以外の情報源（リコールなど）には、新品・中古の別が無い
         kindOf c = if (categoryOf c.site) == Just NonPrice then "" else marketShort c.market <> " "
-        part c = (if many then "「" <> clean 16 c.term <> "」" else "") <> kindOf c <> statusShort c.status
+        part c = (if many then "「" <> clean 16 c.term <> "」" else "") <> kindOf c <> statusShort c
         -- 同じ状態の行（ブラウザで開く・対象外など）は、最初の1つだけ書く
-        distinct = nubBy ((==) `on` (\c -> (bucket c, if isFound c then Just (c.term, c.market) else Nothing))) rows
-        isFound c = case c.status of
-          Found _ _ -> True
-          Zero -> True
-          Error _ -> True
-          _ -> False
-        urls = take 2 (ordNub [u | c <- rows, Just u <- [linkOf c]])
+        distinct = nubBy ((==) `on` (\c -> (bucketOf c, if each c then Just (c.term, c.market) else Nothing))) rows
+        -- 検索ごとに中身が違う状態は、1つずつ書く
+        each c = bucketOf c `elem` ["取得", "0件", "時間切れ", "失敗"]
+        urls = take 2 (ordNub (concatMap linksOf rows))
      in T.intercalate "\t" ([s, T.intercalate " ／ " (map part distinct)] <> urls)
 
 categoryOf :: Text -> Maybe Category
@@ -253,8 +346,10 @@ confirmationMark = \case
 -- | スキルの出力の表（候補・未確認の候補・どこまで探したか）。公式と注記の列は空けておく。
 --
 -- 候補の表に入るのは、個別ページで確認済みになったものだけ。枠ごとに、支払額の安い順。
-renderMd :: Int -> [Finding] -> [Coverage] -> Text
-renderMd limit entries cov =
+--
+-- unreadWhy は、個別ページを読めなかった候補の、URLと理由。
+renderMd :: Int -> [Finding] -> Map Text Text -> [Coverage] -> Text
+renderMd limit entries unreadWhy cov =
   T.unlines $
     [ "## 候補"
     , ""
@@ -291,8 +386,8 @@ renderMd limit entries cov =
       <> map covRow (filter (not . superseded) cov)
  where
   -- 別のコマンド（recall など）で調べがついたサイトの「対象外」の行は出さない
-  superseded c = case c.status of
-    OutOfScope _ -> any (\d -> d.site == c.site && fetched d.status) cov
+  superseded c = case statusOf c of
+    NotTried (OutOfScope _) -> any (\d -> d.site == c.site && fetched (statusOf d)) cov
     _ -> False
   fetched = \case
     Found _ _ -> True
@@ -323,7 +418,9 @@ renderMd limit entries cov =
       , (if e.fromPage then "個別ページ（" else "検索結果の一覧（") <> e.site <> "） " <> shortStamp e.at
       , case e.confirmation of
           Partial ms -> cell (T.intercalate "・" ms)
-          Unconfirmed -> if e.fromPage then "すべて" else "個別ページを未読"
+          Unconfirmed
+            | e.fromPage -> "すべて"
+            | otherwise -> "個別ページを未読" <> maybe "" (\why -> "（" <> cell why <> "）") (Map.lookup e.url unreadWhy)
           Confirmed -> ""
       , "[開く](" <> e.url <> ")"
       ]
@@ -333,8 +430,8 @@ renderMd limit entries cov =
           [ maybe "" (categoryName . (.category)) def
           , maybe c.site (.label) def
           , cell (clean 30 c.term) <> "（" <> marketShort c.market <> "）"
-          , cell (statusShort c.status)
-          , cell c.method <> maybe "" (\u -> " [URL](" <> u <> ")") (linkOf c)
+          , cell (statusShort c)
+          , cell c.method <> maybe "" (\u -> " [URL](" <> u <> ")") (head (linksOf c))
           , shortStamp c.at
           ]
   row cols = "| " <> T.intercalate " | " cols <> " |"

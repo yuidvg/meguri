@@ -82,7 +82,7 @@ nix profile add github:yuidvg/meguri
 4. 選んだものの個別ページを、販路と新品・中古の組ごとに安い順で3件ずつ読む。判定が無ければ、一覧が取れた販路から順に読み始める。
 5. 個別ページの値で、条件をもう一度かける。同じ在庫をまとめ、枠（すぐ買える／入札次第／訳あり／中古／いまは買えない）に分ける。
 
-ヤフオクと Yahoo!フリマの検索は、英字と数字の切れ目で語を切り、語ごとに一致を見る。そのため英字で終わる型番（`NA-LX127C`）では、続きのある型番（`NA-LX127CL`・`NA-LX127CR`）が出ない。この2つの販路では、英字を外した語（`NA-LX127`）でも同じように探し、題に `NA-LX127C` を含むものを足す。どの語を広げたかは、「どこまで探したか」の下に1行で出る。
+ヤフオクと Yahoo!フリマの検索は、英字と数字の切れ目で語を切り、語ごとに一致を見る。そのため英字で終わる型番（`NA-LX127C`）では、続きのある型番（`NA-LX127CL`・`NA-LX127CR`）が出ない。この2つの販路では、英字を外した語（`NA-LX127`）でも同じように探し、題に `NA-LX127C` を含むものを足す。広げて探したことは、「どこまで探したか」のその販路の行に出る（`取得4件・最安¥135,000（「NA-LX127」でも探し、題に「NA-LX127C」を含むものを足した）`）。
 
 ```text
 確かめた候補33件：確認済み29・一部4（個別ページを読んだもの。「確認」の列が、そのページを読んだ時刻）
@@ -116,27 +116,28 @@ hands	新 0件
 | 確認 | その個別ページを読んだ時刻 |
 | 注記 | 読めなかった項目の理由、値についての但し書き、一覧の値からの変化（`価格 ¥20,500→¥20,000`）、同じ在庫がほかのサイトにもあること |
 
-「どこまで探したか」の読み方は次のとおり。
+「どこまで探したか」と「個別ページを読めなかった候補」の理由は、同じ言い方で出る。
 
 | 表示 | 意味 |
 |---|---|
 | 取得◯件・最安¥… | 検索結果を読めた |
 | 0件 | サイトが「該当なし」と返した |
-| ブラウザで開く | HTTP では読めない（か、まだ読み方を作っていない）。行の右のURLをブラウザで開いて見る |
-| ブロック：… | 403・429・ボット確認・Access Denied が出た。ブロックと決めた根拠（状態コード・ページの目印）、ページの題、Server ヘッダ、取った時刻が並び、行の右にブロックされたページのURLが出る。そのサイトはそこでやめている |
-| ブロック（日付 に確かめた）：… | カタログの記録で、どの方法でも読めなかった販路。取りに行っていない |
+| ブラウザで開く | 取りに行かなかった。HTTP では読めない（か、まだ読み方を作っていない）販路か、価格.com の転送URL。行の右のURLをブラウザで開いて見る |
+| ブロック：… | 403・429・ボット確認・Access Denied が出た。ブロックと決めた根拠（状態コード・ページの目印）、ページの題、Server ヘッダ、取った時刻が並び、行の右にブロックされたページのURLが出る。そのサイトの、あとの検索は取りに行かない（「同じサイトが、この実行でもうブロックされていたので、取りに行かなかった」と出る） |
+| ブロック（日付 に確かめた）：… | 取りに行かなかった。カタログの記録で、どの方法でも読めなかった販路 |
 | 停止中 | サイトがメンテナンスや休止中 |
 | 対象外 | 買う販路ではない（通販が無い、など） |
-| 失敗 | つながらない、時間切れ、ページの作りが変わった、など |
+| 時間切れ | `--time` の上限までに終わらなかった |
+| 失敗 | つながらない、ページが無い（404）、ページの作りが変わった、など |
 
-「個別ページを読めなかった候補」の理由は次のとおり。
+1回の検索は、何ページか取りに行くことがある（1ページ目、価格.com のショップ一覧のような続きのページ、語を広げた検索）。そのうちの一部がうまくいかなくても、取れた分は残り、うまくいかなかった分は同じ行の（ ）の中に出る。
 
-| 表示 | 意味 |
-|---|---|
-| ブラウザで開く | 取りに行かなかった。カタログで HTTP では読めない販路のページか、価格.com の転送URL |
-| ブロック | 根拠・ページの題・Server ヘッダ・取った時刻 |
-| 時間切れ | `--time` の上限までに順番が来なかった |
-| 失敗 | つながらない、ページが無い（404）、など |
+```
+yahuoku	中古 取得3件・最安¥135,000（「NA-LX127」での検索は、ブロック：HTTP 403・Server AkamaiGHost（11/23 20:16））	https://auctions.yahoo.co.jp/…
+kakaku	新 取得2件（続きのページは、時間切れ：時間の上限までに終わらなかった。--time で延ばせる）
+```
+
+個別ページを読んだあとの送料の問い合わせがうまくいかなかったときは、その候補の注記に出る（`送料の問い合わせは、ブロック：…`）。
 
 ## 何を：探している物の選び方
 
@@ -242,20 +243,52 @@ meguri search "WH-1000XM5" --min-price 12000 --url "https://lohaco.yahoo.co.jp/s
 | `--format` | 中身 |
 |---|---|
 | `table`（既定） | 上の例の形。タブ区切りで、1件1行。30KB 以内に収める |
-| `jsonl` | 1行に1つの JSON。確かめた候補（`meguri.result/1`）、読めなかった候補（`meguri.unread/1`）、集計（`meguri.summary/1`）、どこまで探したか（`meguri.coverage/2`）の順 |
+| `jsonl` | 1行に1つの JSON。確かめた候補（`meguri.result/2`）、読めなかった候補（`meguri.unread/2`）、集計（`meguri.summary/1`）、どこまで探したか（`meguri.coverage/3`）の順 |
 | `md` | 報告用の表。「候補」（確認済み。画像・支払額・在庫と確認時刻・購入のリンク）、「未確認の候補」、「どこまで探したか」 |
 
 `jsonl` の確かめた候補の1行は次のとおり。
 
 ```json
-{"at":"2026-11-21T16:57:51+09:00","buy":{"contents":"カートに入れる","tag":"BuyActive"},"condition":"B RANK","confirmation":{"tag":"Confirmed"},"duplicates":[],"frame":"Secondhand","fromPage":true,"image":"https://…","keys":{"jan":null,"model":"WH-1000XM5","sharedStockId":null,"siteItemId":"2012940000135468"},"name":"SONY ノイズキャンセリングヘッドフォン WH-1000XM5","notes":["送料：都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる"],"payable":null,"points":null,"priceExcl":15000,"priceIncl":16500,"schema":"meguri.result/1","seller":"ハードオフ伊勢原店","shipping":{"tag":"ByDestination"},"site":"hardoff","stock":{"tag":"InStock"},"url":"https://netmall.hardoff.co.jp/product/5323159/"}
+{"at":"2026-11-21T16:57:51+09:00","attempts":[{"role":"item","url":"https://netmall.hardoff.co.jp/product/5323159/","at":"2026-11-21T16:57:51+09:00","outcome":"got"}],"buy":{"contents":"カートに入れる","tag":"BuyActive"},"condition":"B RANK","confirmation":{"tag":"Confirmed"},"duplicates":[],"frame":"Secondhand","fromPage":true,"image":"https://…","keys":{"jan":null,"model":"WH-1000XM5","sharedStockId":null,"siteItemId":"2012940000135468"},"name":"SONY ノイズキャンセリングヘッドフォン WH-1000XM5","notes":["送料：都道府県ごと。MEGURI_PREF を設定すると、配送先までの送料を入れる"],"payable":null,"points":null,"priceExcl":15000,"priceIncl":16500,"schema":"meguri.result/2","seller":"ハードオフ伊勢原店","shipping":{"tag":"ByDestination"},"site":"hardoff","stock":{"tag":"InStock"},"url":"https://netmall.hardoff.co.jp/product/5323159/"}
 ```
 
 ```bash
-meguri search "WH-1000XM5" --min-price 12000 --has XM5 --format jsonl | jq -r 'select(.schema=="meguri.result/1") | [.payable // .priceIncl, .site, .seller, .at, .url] | @tsv'
+meguri search "WH-1000XM5" --min-price 12000 --has XM5 --format jsonl | jq -r 'select(.schema=="meguri.result/2") | [.payable // .priceIncl, .site, .seller, .at, .url] | @tsv'
 ```
 
-ブロックされたものには、その事実が付く。どこまで探したか（`meguri.coverage/2`）では `status` が `{"tag":"Blocked","contents":{…}}` になり、読めなかった候補（`meguri.unread/1`）では `"why":"blocked"` と、同じ形の `block` が付く。
+### 取りに行った結果（attempts）
+
+結果は、した作業と同じ形で出る。失敗は、それが起きたところにだけ書いてある。
+
+| どこに | 何が入るか |
+|---|---|
+| どこまで探したか（`meguri.coverage/3`）の1行 | 検索1回（販路×語×新品／中古）。`skipped` か `attempts` のどちらかが入る |
+| 読めなかった候補（`meguri.unread/2`）の1行 | 個別ページ1つ。`skipped` か `attempts` のどちらかが入る |
+| 確かめた候補（`meguri.result/2`）の1行 | 個別ページ1つ。`attempts` に、個別ページと、送料を問い合わせたならその問い合わせが入る |
+
+`skipped` は、取りに行かなかった理由（取りに行ったなら `null`）。`{"why":"needs_browser","reason":"…"}` の形で、`why` は `out_of_scope`（対象外）・`needs_browser`（ブラウザで開く）・`blocked_before`（カタログの記録でブロック。`checked` に確かめた日）・`stopped`（カタログの記録で停止中）。
+
+`attempts` は、取りに行ったページを、した順に並べたもの。1つが1回の取得。
+
+| 項目 | 中身 |
+|---|---|
+| `role` | 何のために取りに行ったか。`search`（検索の1ページ目）・`follow`（続きのページ）・`wider`（語を広げた検索。`wider` に、広げた語 `term` と、題に含むべき語 `has`）・`item`（個別ページ）・`shipping`（送料の問い合わせ） |
+| `url` | 取りに行ったページ（送料の問い合わせは、配送先を残さないよう `?` より前だけ） |
+| `at` | 取った時刻 |
+| `outcome` | `got`（読めるページが返った）・`not_found`（404）・`blocked`（ブロック）・`host_blocked`（同じサイトがこの実行でもうブロックされていたので、取りに行かなかった）・`stopped`（メンテナンスのページ）・`failed`（つながらない・HTTP 500 など）・`timed_out`（時間切れ） |
+| `reason` | `stopped`・`failed` のときの説明 |
+| `block` | `blocked`・`host_blocked` のときの、ブロックの事実（下の表） |
+| `listed` | 一覧のページが取れたとき、そこから読めたもの。`offers`＝抜き出せた数、`zero`＝サイトが「該当なし」と返した、`kept`＝そのうち結果に残した数 |
+
+どこまで探したかの1行には、`attempts` から計算した状態も入る。`status` は `found`・`zero`・`blocked`・`stopped`・`timed_out`・`failed` か、`skipped` の `why`。`found` は残した数。1件でも残れば `found`、残らず1ページ目が「該当なし」なら `zero`、どちらでもなければ、うまくいかなかった最初の取得で決まる。`found` や `zero` でも、`attempts` の中にうまくいかなかった取得が残っていることがある。
+
+```json
+{"schema":"meguri.coverage/3","site":"yahuoku","term":"NA-LX127C","market":"Used","url":"https://auctions.yahoo.co.jp/search/search?p=NA-LX127C&s1=cbids&o1=a","status":"found","found":4,"cheapest":135000,"skipped":null,"attempts":[{"role":"search","url":"https://auctions.yahoo.co.jp/search/search?p=NA-LX127C&s1=cbids&o1=a","at":"2026-11-23T20:18:47+09:00","outcome":"not_found","listed":{"offers":0,"zero":true,"kept":0}},{"role":"wider","wider":{"term":"NA-LX127","has":["NA-LX127C"]},"url":"https://auctions.yahoo.co.jp/search/search?p=NA-LX127&s1=cbids&o1=a","at":"2026-11-23T20:18:49+09:00","outcome":"got","listed":{"offers":10,"zero":false,"kept":4}}],"method":"HTTP","at":"2026-11-23T20:18:47+09:00"}
+```
+
+読めなかった候補の1行には、`why`（`skipped` の `why` か、うまくいかなかった最初の取得の `blocked`・`stopped`・`timed_out`・`failed`）と、その説明 `reason` も入る。
+
+ブロックの事実（`block`）の中身は次のとおり。
 
 | 項目 | 中身 |
 |---|---|
@@ -267,9 +300,7 @@ meguri search "WH-1000XM5" --min-price 12000 --has XM5 --format jsonl | jq -r 's
 | `retryAfter` | 応答の Retry-After ヘッダ |
 | `at` | ページを取った時刻 |
 
-カタログの記録で、どの方法でも読めなかった販路は `{"tag":"BlockedBefore","contents":["確かめた日","注記"]}` になる（取りに行っていない）。
-
-走らせるたびに、実行の記録が `~/.cache/meguri/runs/<id>/` に残る（7日で消える。場所は出力の最後の行に出る）。項目ごとの出どころまで入った全項目は `readings.jsonl`、一覧で見かけた売り物の全部は `sightings.jsonl`、取ったページは `pages/` にある。記録は書くだけで、あとのコマンドが読むことはない。
+走らせるたびに、実行の記録が `~/.cache/meguri/runs/<id>/` に残る（7日で消える。場所は出力の最後の行に出る）。項目ごとの出どころまで入った全項目は `readings.jsonl`（取得の並び `attempts` つき）、一覧で見かけた売り物の全部は `sightings.jsonl`（どのページで見かけたかの `via` つき）、取ったページは `pages/` にある。記録は書くだけで、あとのコマンドが読むことはない。
 
 ## 配送先までの送料
 
@@ -285,7 +316,7 @@ MEGURI_PREF=13 meguri search "WH-1000XM5" --only hardoff --market used --min-pri
 meguri item "https://netmall.hardoff.co.jp/product/6531583/"
 ```
 
-個別ページを1つ読み、項目ごとに「どこから読んだか」をつけて出す。読めなかった項目は `null` で、理由が横に出る。ブロックされたら、根拠・ページの題・Server ヘッダ・取った時刻・URLを標準エラーに出し、終了コード3で終わる。カタログで HTTP では読めない販路のページは、取りに行かない（終了コード2）。
+個別ページを1つ読み、項目ごとに「どこから読んだか」をつけて出す。読めなかった項目は `null` で、理由が横に出る。ページを取れなかったら（ブロック・404・停止中 など）、その理由とURLを標準エラーに出し、終了コード3で終わる。ブロックなら、根拠・ページの題・Server ヘッダ・取った時刻が並ぶ。カタログで HTTP では読めない販路のページは、取りに行かない（終了コード2）。`--format jsonl`（`meguri.item/2`）には、取得の並び `attempts` が付く。
 
 ```bash
 meguri sold "WH-1000XM5" --min-price 12000
@@ -293,7 +324,7 @@ meguri sold "WH-1000XM5" --min-price 12000
 
 ヤフオクの落札相場。件数・最安・中央値・最高と、落札された出品が出る。`search` の「何を」の選び方（`--min-price`・`--has`・`--judge` など）が使える。
 
-ヤフオクの検索は、英字と数字の切れ目で語を切り、語ごとに一致を見る。そのため英字で終わる型番（`NA-LX127C`）では、続きのある型番（`NA-LX127CL`・`NA-LX127CR`）が出ない。`sold` は、英字を外した語（`NA-LX127`）でも探し（新しい順に100件まで）、題に `NA-LX127C` を含むものを足す。どの語を広げたかは、表の下に1行で出る。語を複数並べると、語ごとに探してまとめる（同じ出品は1つにする）。
+ヤフオクの検索は、英字と数字の切れ目で語を切り、語ごとに一致を見る。そのため英字で終わる型番（`NA-LX127C`）では、続きのある型番（`NA-LX127CL`・`NA-LX127CR`）が出ない。`sold` は、英字を外した語（`NA-LX127`）でも探し（新しい順に100件まで）、題に `NA-LX127C` を含むものを足す。広げて探したことは、表の下の「どこまで探したか」の行に出る。`--format jsonl`（`meguri.sold/2`）の各行には、どのページで見かけたか（`via`）が付く。語を複数並べると、語ごとに探してまとめる（同じ出品は1つにする）。
 
 ```bash
 meguri recall "ヘッドホン" "headphone"

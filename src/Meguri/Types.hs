@@ -28,15 +28,31 @@ module Meguri.Types
   , emptyOffer
   , payable
   , Sighting (..)
+  , Via (..)
   , Reading (..)
   , Market (..)
-  , Status (..)
-  , Block (..)
-  , Coverage (..)
   , Confirmation (..)
+    -- * 取りに行った結果
+  , Role (..)
+  , Outcome (..)
+  , Block (..)
+  , Listed (..)
+  , Attempt (..)
+  , fine
+  , troubles
+  , failureKind
+  , Skip (..)
+  , skipKind
+  , Did (..)
+  , attemptsOf
+  , Coverage (..)
+  , Status (..)
+  , statusOf
+  , statusKind
   ) where
 
-import Data.Aeson (FromJSON (..), Options (..), ToJSON (..), defaultOptions, genericParseJSON, genericToEncoding, genericToJSON)
+import Data.Aeson (FromJSON (..), Options (..), ToJSON (..), defaultOptions, genericParseJSON, genericToEncoding, genericToJSON, object, (.=))
+import Data.Aeson.Types (Pair)
 import Protolude
 
 newtype Yen = Yen Int
@@ -224,9 +240,21 @@ data Sighting = Sighting
   { term :: Text
   , market :: Market
   , offer :: Offer OnList
+  , -- | どのページで見かけたか
+    via :: Via
   }
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (ToJSON)
+
+-- | 売り物を見かけたページ：役割（検索の1ページ目・続き・語を広げた検索）とURL
+data Via = Via
+  { role :: Role
+  , url :: Text
+  }
+  deriving stock (Eq, Show)
+
+instance ToJSON Via where
+  toJSON v = object (rolePairs v.role <> ["url" .= v.url])
 
 -- | 個別ページから作った記録
 data Reading = Reading
@@ -246,21 +274,67 @@ data Confirmation
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
-data Status
-  = -- | 件数と最安（税込価格）
-    Found Int (Maybe Yen)
-  | Zero
-  | -- | この実行で取りに行って、ブロックされた
+-- 取りに行った結果 ------------------------------------------------------------
+--
+-- 結果は、した作業と同じ形の木にする。失敗は、それが起きた単位にだけ書く。
+--
+-- @
+-- 検索1回（'Coverage'）・個別ページ1つ ─ 取りに行かなかった（'Skip'）
+--                                     └ 取りに行った ─ 取得（'Attempt'）が1つ以上 ─ 取得の結果（'Outcome'）
+--                                                                              └ 取れたページから読めたもの（'Listed'・項目の 'Field'）
+-- @
+--
+-- 検索の状態（'Status'）は、取得の並びから計算する（'statusOf'）。持ち回らない。
+
+-- | 取りに行ったページの役割
+data Role
+  = -- | 検索結果の1ページ目
+    SearchPage
+  | -- | 続きのページ（価格.com のショップ一覧など）
+    FollowPage
+  | -- | 語を広げた検索。広げた語と、その結果から残すものが題に含むべき語
+    WiderPage Text [Text]
+  | -- | 個別ページ
+    DetailPage
+  | -- | 送料の問い合わせ
+    ShipQuery
+  deriving stock (Eq, Show)
+
+rolePairs :: Role -> [Pair]
+rolePairs = \case
+  SearchPage -> ["role" .= ("search" :: Text)]
+  FollowPage -> ["role" .= ("follow" :: Text)]
+  WiderPage w has -> ["role" .= ("wider" :: Text), "wider" .= object ["term" .= w, "has" .= has]]
+  DetailPage -> ["role" .= ("item" :: Text)]
+  ShipQuery -> ["role" .= ("shipping" :: Text)]
+
+-- | 1ページを取りに行った結果
+data Outcome
+  = -- | 読めるページが返った
+    Got
+  | -- | HTTP 404
+    NotFound
+  | -- | ブロックされた（403・429・ボット確認・Access Denied）
     Blocked Block
-  | -- | カタログの記録で、どの方法でも読めなかった販路。取りに行っていない（確かめた日と注記）
-    BlockedBefore Text Text
-  | NeedsBrowser Text
-  | -- | 日付と注記
-    Stopped Text Text
-  | OutOfScope Text
-  | Error Text
-  deriving stock (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  | -- | 取りに行かなかった。同じホストが、この実行でもうブロックされていた（そのブロック）
+    HostBlocked Block
+  | -- | メンテナンスのページ
+    Stopped Text
+  | -- | つながらない・応答がない・HTTP 500 など
+    Failed Text
+  | -- | 時間の上限までに終わらなかった
+    TimedOut
+  deriving stock (Eq, Show)
+
+outcomePairs :: Outcome -> [Pair]
+outcomePairs = \case
+  Got -> ["outcome" .= ("got" :: Text)]
+  NotFound -> ["outcome" .= ("not_found" :: Text)]
+  Blocked b -> ["outcome" .= ("blocked" :: Text), "block" .= b]
+  HostBlocked b -> ["outcome" .= ("host_blocked" :: Text), "block" .= b]
+  Stopped why -> ["outcome" .= ("stopped" :: Text), "reason" .= why]
+  Failed why -> ["outcome" .= ("failed" :: Text), "reason" .= why]
+  TimedOut -> ["outcome" .= ("timed_out" :: Text)]
 
 -- | ブロックされた事実：どのページで、何を見てブロックと決めたか。応答の手がかりも添える
 data Block = Block
@@ -282,15 +356,175 @@ data Block = Block
   deriving stock (Eq, Show, Generic)
   deriving anyclass (ToJSON, FromJSON)
 
--- | 「どこまで探したか」の1行
+-- | 取れた一覧のページから読めたもの
+data Listed = Listed
+  { -- | 抜き出せた売り物の数
+    offers :: Int
+  , -- | サイトが「該当なし」と返した
+    zero :: Bool
+  , -- | そのうち、結果に残した数。URLの形が正しくないもの、もう出ているもの、
+    -- 語を広げた検索で題にもとの語を含まないものは、残さない
+    kept :: Int
+  }
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (ToJSON)
+
+-- | 取得1回：どのページを、何のために取りに行き、どうなったか
+data Attempt = Attempt
+  { role :: Role
+  , -- | 取りに行ったページ。配送先を含む問い合わせは、? より前だけ
+    url :: Text
+  , -- | 取った時刻（JST）。取れなかったときは、あきらめた時刻
+    at :: Text
+  , outcome :: Outcome
+  , -- | 一覧のページが取れたとき、そこから読めたもの
+    listed :: Maybe Listed
+  }
+  deriving stock (Eq, Show)
+
+instance ToJSON Attempt where
+  toJSON a = object (rolePairs a.role <> ["url" .= a.url, "at" .= a.at] <> outcomePairs a.outcome <> ["listed" .= l | Just l <- [a.listed]])
+
+-- | うまくいった取得か。404 は、サイトが「該当なし」と返したときだけ（0件のページを 404 で返すサイトがある）
+fine :: Attempt -> Bool
+fine a = case a.outcome of
+  Got -> True
+  NotFound -> maybe False (.zero) a.listed
+  _ -> False
+
+-- | うまくいかなかった取得
+troubles :: [Attempt] -> [Attempt]
+troubles = filter (not . fine)
+
+-- | うまくいかなかった取得の種類：blocked・stopped・timed_out・failed
+failureKind :: Attempt -> Text
+failureKind a = case a.outcome of
+  Blocked _ -> "blocked"
+  HostBlocked _ -> "blocked"
+  Stopped _ -> "stopped"
+  TimedOut -> "timed_out"
+  _ -> "failed"
+
+-- | 取りに行かなかった理由。取りに行く前に、カタログやURLの形で決まる
+data Skip
+  = -- | 買う販路ではない、新品・中古の別が合わない、など
+    OutOfScope Text
+  | -- | HTTP では読めない。ブラウザで開く
+    NeedsBrowser Text
+  | -- | カタログの記録で、どの方法でも読めなかった販路（確かめた日と注記）
+    BlockedBefore Text Text
+  | -- | カタログの記録で、止まっている販路（確かめた日と理由）
+    StoppedBefore Text Text
+  deriving stock (Eq, Show)
+
+-- | 取りに行かなかった理由の種類：out_of_scope・needs_browser・blocked_before・stopped
+skipKind :: Skip -> Text
+skipKind = \case
+  OutOfScope _ -> "out_of_scope"
+  NeedsBrowser _ -> "needs_browser"
+  BlockedBefore _ _ -> "blocked_before"
+  StoppedBefore _ _ -> "stopped"
+
+instance ToJSON Skip where
+  toJSON s = object $ ("why" .= skipKind s) : case s of
+    OutOfScope why -> ["reason" .= why]
+    NeedsBrowser why -> ["reason" .= why]
+    BlockedBefore day why -> ["checked" .= day, "reason" .= why]
+    StoppedBefore day why -> ["checked" .= day, "reason" .= why]
+
+-- | 検索1回や個別ページ1つについて、したこと
+data Did
+  = -- | 取りに行かなかった
+    Skipped Skip
+  | -- | 取りに行った。取得は、した順
+    Tried [Attempt]
+  deriving stock (Eq, Show)
+
+attemptsOf :: Did -> [Attempt]
+attemptsOf = \case
+  Skipped _ -> []
+  Tried as -> as
+
+-- | JSON では、skipped（取りに行かなかった理由。取りに行ったなら null）と attempts（取得の並び）に分ける
+didPairs :: Did -> [Pair]
+didPairs d = case d of
+  Skipped s -> ["skipped" .= s, "attempts" .= ([] :: [Attempt])]
+  Tried as -> ["skipped" .= (Nothing :: Maybe Skip), "attempts" .= as]
+
+instance ToJSON Did where
+  toJSON = object . didPairs
+
+-- | 「どこまで探したか」の1行：検索1回（1つの販路に、1つの語を、新品か中古のどちらかで当てる）
 data Coverage = Coverage
   { site :: Text
   , term :: Text
   , market :: Market
-  , status :: Status
-  , url :: Maybe Text
-  , method :: Text
-  , at :: Text
+  , -- | 検索URL。組み立てられないサイトは 'Nothing'
+    url :: Maybe Text
+  , did :: Did
+  , -- | 残した売り物の最安（税込価格）
+    cheapest :: Maybe Yen
+  , -- | 見た方法（HTTP・カタログ・ブラウザで開く など）
+    method :: Text
+  , -- | 最初のページを取った時刻。取りに行かなかったなら、この行を作った時刻（JST）
+    at :: Text
   }
-  deriving stock (Eq, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving stock (Eq, Show)
+
+-- | JSON には、計算した状態（status と、残した数 found）も入れる
+instance ToJSON Coverage where
+  toJSON c =
+    object $
+      [ "site" .= c.site
+      , "term" .= c.term
+      , "market" .= c.market
+      , "url" .= c.url
+      , "status" .= statusKind st
+      , "found" .= (case st of Found n _ -> n; _ -> 0)
+      , "cheapest" .= c.cheapest
+      ]
+        <> didPairs c.did
+        <> ["method" .= c.method, "at" .= c.at]
+   where
+    st = statusOf c
+
+-- | 検索1回の状態
+data Status
+  = -- | 残した売り物の数と、最安（税込価格）
+    Found Int (Maybe Yen)
+  | -- | サイトが「該当なし」と返した
+    Zero
+  | -- | 取りに行ったが、1件も得られなかった。そのもとになった取得
+    Unfetched Attempt
+  | -- | ページは取れたが、一覧から1件も抜き出せなかった
+    Unreadable
+  | -- | 取りに行かなかった
+    NotTried Skip
+  deriving stock (Eq, Show)
+
+-- | 検索の状態を、取得の並びから計算する。
+--
+-- 1件でも残れば「取得」。残らず、1ページ目が「該当なし」なら「0件」。
+-- どちらでもなければ、うまくいかなかった最初の取得がもと。それも無ければ、抜き出せなかった。
+--
+-- 「取得」や「0件」でも、うまくいかなかった取得（続きのページ・語を広げた検索）が残っていることがある（'troubles'）。
+statusOf :: Coverage -> Status
+statusOf c = case c.did of
+  Skipped s -> NotTried s
+  Tried as ->
+    let kept = sum [l.kept | a <- as, Just l <- [a.listed]]
+        zero = or [l.zero | a <- as, a.role == SearchPage, Just l <- [a.listed]]
+     in if
+          | kept > 0 -> Found kept c.cheapest
+          | zero -> Zero
+          | Just a <- head (troubles as) -> Unfetched a
+          | otherwise -> Unreadable
+
+-- | 状態の種類：found・zero・blocked・stopped・timed_out・failed・out_of_scope・needs_browser・blocked_before
+statusKind :: Status -> Text
+statusKind = \case
+  Found _ _ -> "found"
+  Zero -> "zero"
+  Unfetched a -> failureKind a
+  Unreadable -> "failed"
+  NotTried s -> skipKind s

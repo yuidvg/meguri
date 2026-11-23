@@ -1,7 +1,7 @@
 module Main (main) where
 
 import Control.Concurrent.Async (mapConcurrently)
-import Data.Aeson (ToJSON, Value (Object), object, toJSON, (.=))
+import Data.Aeson (ToJSON, Value (..), encode, object, toJSON, (.=))
 import Data.Aeson.Encode.Pretty (Config (..), defConfig, encodePretty')
 import Data.Aeson (decodeStrict')
 import Data.Aeson.KeyMap qualified as KM
@@ -36,8 +36,8 @@ import Meguri.Scope qualified as Scope
 import Meguri.Selection (Ask, Excluded (..), Selected (..), Selection (..), everything, select, sift)
 import Meguri.Search qualified as Search
 import Meguri.Report qualified as Report
-import Meguri.Read (Checked (..), Page (..), Unread (..), UnreadReason (..), cheapest, driftFrom, tracked)
-import Meguri.Render (sightingLine, coverageSummary, cheapestFirst, sitesMd)
+import Meguri.Read (Checked (..), Page (..), Unread (..), cheapest, driftFrom, tracked)
+import Meguri.Render (sightingLine, coverageSummary, cheapestFirst, sitesMd, statusShort)
 import Meguri.Run (Paths (..), newRun, purgeOld)
 import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
 import Meguri.List
@@ -71,6 +71,7 @@ main =
       , scopeTests
       , acceptTests
       , searchTests
+      , attemptTests
       , widenTests
       , fetchTests
       , concurrencyTests
@@ -288,7 +289,19 @@ confirmTests =
 -- | テスト用の候補（一覧の値）
 mkCand :: Text -> Text -> Text -> Int -> Sighting
 mkCand siteId url name price =
-  Sighting "WH-1000XM5" New ((emptyOffer SearchList siteId url stamp) {name = got SearchList name, priceIncl = got SearchList (Yen price), shipping = got SearchList Free})
+  Sighting "WH-1000XM5" New ((emptyOffer SearchList siteId url stamp) {name = got SearchList name, priceIncl = got SearchList (Yen price), shipping = got SearchList Free}) seenOnSearch
+
+-- | テスト用：検索の1ページ目で見かけた
+seenOnSearch :: Via
+seenOnSearch = Via SearchPage "https://example.test/search"
+
+-- | テスト用の取得
+tried :: Role -> Text -> Outcome -> Maybe Listed -> Attempt
+tried role url outcome listed = Attempt {role, url, at = stamp, outcome, listed}
+
+-- | テスト用の「どこまで探したか」の1行（取りに行ったもの）
+covOf :: Text -> Text -> Market -> Maybe Yen -> [Attempt] -> Coverage
+covOf site term market cheapest as = Coverage {site, term, market, url = Just ("https://example.test/search?q=" <> term), did = Tried as, cheapest, method = "HTTP", at = stamp}
 
 -- | テスト用の記録（個別ページで7項目すべて読めたもの）
 mkItem :: Text -> Text -> Int -> Reading
@@ -350,6 +363,85 @@ scopeTests =
  where
   scopeOf sel = Scope sel [] []
 
+-- | 失敗の持ち方：取得（1ページを取りに行った結果）を並べて持ち、検索の状態はそこから計算する
+attemptTests :: TestTree
+attemptTests =
+  testGroup
+    "取得の並びと、検索の状態"
+    [ testCase "1件でも残れば「取得」。語を広げた検索がブロックされたことは、同じ行に残る" $ do
+        let c = covOf "yahuoku" "NA-LX127C" Used (Just (Yen 135000)) [first 3, wide (Blocked akamai) Nothing]
+        statusOf c @?= Found 3 (Just (Yen 135000))
+        statusShort c @?= "取得3件・最安¥135,000（「NA-LX127」での検索は、ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00））"
+        T.lines (coverageSummary [c])
+          @?= [ "どこまで探したか：取得1（サイト×検索語×種類の行数）"
+              , "yahuoku\t中古 " <> statusShort c <> "\thttps://example.test/wide"
+              ]
+    , testCase "語を広げた検索が取れたら、広げて探したことが同じ行に出る" $
+        statusShort (covOf "yahuoku" "NA-LX127C" Used (Just (Yen 135000)) [first 3, wide Got (Just (Listed 50 False 1))])
+          @?= "取得4件・最安¥135,000（「NA-LX127」でも探し、題に「NA-LX127C」を含むものを足した）"
+    , testCase "1ページ目が「該当なし」なら「0件」。続きがうまくいかなかったことは残る" $ do
+        let c = covOf "paypayfleamarket" "NA-LX127C" Used Nothing [tried SearchPage "https://example.test/s" NotFound (Just (Listed 0 True 0)), wide (Failed "HTTP 500") Nothing]
+        statusOf c @?= Zero
+        statusShort c @?= "0件（「NA-LX127」での検索は、失敗：HTTP 500）"
+    , testCase "1件も残らず、続きのページがブロックなら「ブロック」（一覧の作りが変わったとは言わない）" $ do
+        let follow = tried FollowPage "https://example.test/shop" (Blocked akamai) Nothing
+            c = covOf "kakaku" "q" New Nothing [first 0, follow]
+        statusOf c @?= Unfetched follow
+        statusKind (statusOf c) @?= "blocked"
+        statusShort c @?= "ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00）（続きのページ）"
+    , testCase "ページは取れたのに1件も抜き出せなければ、そう言う" $ do
+        let c = covOf "x" "q" New Nothing [first 0]
+        statusOf c @?= Unreadable
+        statusKind (statusOf c) @?= "failed"
+    , testCase "404 は失敗。ただし、サイトが「該当なし」と返した 404 は 0件" $ do
+        statusKind (statusOf (covOf "x" "q" New Nothing [tried SearchPage "u" NotFound Nothing])) @?= "failed"
+        statusOf (covOf "x" "q" New Nothing [tried SearchPage "u" NotFound (Just (Listed 0 True 0))]) @?= Zero
+    , testCase "時間切れ・停止中・この実行でブロック済み・取りに行かなかった、の分け方" $ do
+        let kind as = statusKind (statusOf (covOf "x" "q" New Nothing as))
+        kind [tried SearchPage "u" TimedOut Nothing] @?= "timed_out"
+        kind [tried SearchPage "u" (Stopped "メンテナンスのページ") Nothing] @?= "stopped"
+        kind [tried SearchPage "u" (HostBlocked akamai) Nothing] @?= "blocked"
+        statusKind (statusOf Coverage {site = "x", term = "q", market = New, url = Nothing, did = Skipped (NeedsBrowser "JSの描画が要る"), cheapest = Nothing, method = "ブラウザで開く", at = stamp}) @?= "needs_browser"
+    , testCase "時間切れになる前に取れた分は残る" $ do
+        let c = covOf "kakaku" "q" New (Just (Yen 100)) [first 2, tried FollowPage "https://example.test/shop" TimedOut Nothing]
+        statusShort c @?= "取得2件・最安¥100（続きのページは、時間切れ：時間の上限までに終わらなかった。--time で延ばせる）"
+    , testCase "残す売り物：語を広げた検索からは、題にもとの語を含み、まだ出ていないものだけ。取得に、読めた数と残した数が入る" $ do
+        let offer u n = (emptyOffer SearchList "yahuoku" u stamp) {name = got SearchList n}
+            pages =
+              [ (tried SearchPage "https://example.test/s" Got Nothing, Just (ListOut [offer "https://example.test/1" "NA-LX127C", offer "javascript:void(0)" "NA-LX127C"] False []))
+              , (tried FollowPage "https://example.test/2nd" (Failed "HTTP 500") Nothing, Nothing)
+              , ( wide Got Nothing
+                , Just (ListOut [offer "https://example.test/1" "NA-LX127C", offer "https://example.test/2" "NA-LX127CL-W", offer "https://example.test/3" "NA-LX127B"] False [])
+                )
+              ]
+            (as, kept) = settle pages
+        map (.listed) as @?= [Just (Listed 2 False 1), Nothing, Just (Listed 3 False 1)]
+        [(via.role, x.url) | (via, x) <- kept]
+          @?= [(SearchPage, "https://example.test/1"), (WiderPage "NA-LX127" ["NA-LX127C"], "https://example.test/2")]
+    , testCase "JSON：どこまで探したかの1行に、計算した状態と、取得の並びが入る" $ do
+        let c = covOf "yahuoku" "NA-LX127C" Used (Just (Yen 135000)) [first 3, wide (Blocked akamai) Nothing]
+            field k = KM.lookup k =<< (decodeStrict' (BL.toStrict (encode c)) :: Maybe (KM.KeyMap Value))
+        (field "status", field "found", field "skipped") @?= (Just (toJSON ("found" :: Text)), Just (toJSON (3 :: Int)), Just Null)
+        field "attempts"
+          @?= Just
+            ( toJSON
+                [ object ["role" .= ("search" :: Text), "url" .= ("https://example.test/s" :: Text), "at" .= stamp, "outcome" .= ("got" :: Text), "listed" .= object ["offers" .= (3 :: Int), "zero" .= False, "kept" .= (3 :: Int)]]
+                , object
+                    [ "role" .= ("wider" :: Text)
+                    , "wider" .= object ["term" .= ("NA-LX127" :: Text), "has" .= (["NA-LX127C"] :: [Text])]
+                    , "url" .= ("https://example.test/wide" :: Text)
+                    , "at" .= stamp
+                    , "outcome" .= ("blocked" :: Text)
+                    , "block" .= akamai
+                    ]
+                ]
+            )
+    ]
+ where
+  first n = tried SearchPage "https://example.test/s" Got (Just (Listed n False n))
+  wide = tried (WiderPage "NA-LX127" ["NA-LX127C"]) "https://example.test/wide"
+  akamai = Block {url = "https://example.test/wide", status = 403, reason = "HTTP 403", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Nothing, at = stamp}
+
 -- | 語を広げて探す（ヤフオク・Yahoo!フリマの検索は、英字と数字の切れ目で切った語ごとに一致を見る）
 widenTests :: TestTree
 widenTests =
@@ -370,9 +462,6 @@ widenTests =
     , testCase "search：広げる語が無いときと、ヤフオク・Yahoo!フリマに当たらないとき（--market new）は、広げない" $ do
         length (filter (isJust . (.wider)) (lookups ["WH-1000XM5"] [] catalog)) @?= 0
         length (filter (isJust . (.wider)) (lookups ["NA-LX127C"] [New] catalog)) @?= 0
-    , testCase "search：広げた語ごとに、どの販路で、どの語で探したかを1行で出す" $
-        widenedNote (lookups ["NA-LX127C", "WH-1000XM5"] [] catalog)
-          @?= "「NA-LX127C」は、paypayfleamarket・yahuoku で「NA-LX127」でも探し、題に「NA-LX127C」を含むものを足した\n"
     , testCase "広げた検索（NA-LX127）の結果から、題に NA-LX127C を含むもの（C・CL・CR）だけを残す" $ do
         html <- readFixture "yahuoku/closedsearch-wide.html"
         let def = fromMaybe (panic "カタログに無い") (lookupSite "yahuoku")
@@ -403,7 +492,7 @@ acceptTests =
     , testCase "商品名は、大文字小文字・全角半角・空白・ハイフンの違いを無視して照らす" $
         map (\c -> c.offer.url) (sift [nameHas "WH-1000XM5"] ofSighting cs).chosen @?= ["u1", "u2", "u4"]
     , testCase "価格が分からないものは、価格の条件で外さない（個別ページで分かってから、もう一度かかる）" $ do
-        let unknown = Sighting "q" New (emptyOffer SearchList "x" "u9" stamp)
+        let unknown = Sighting "q" New (emptyOffer SearchList "x" "u9" stamp) seenOnSearch
         length (sift [minPrice 12000, maxPrice 50000] ofSighting [unknown]).chosen @?= 1
     , testCase "外のコマンドの出力：id だけの行でも、id を持つ JSON でもよい。keep:false は外す" $
         commandKept "3\n{\"id\":5,\"name\":\"x\"}\n{\"id\":7,\"keep\":false}\n\n" @?= Right (Set.fromList ["3", "5"])
@@ -473,7 +562,7 @@ searchTests =
         concatMap (.notes) (filter (.fromPage) res.findings) @?= ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
     , testCase "名指しのページ（--url）は、選び方で外さない" $ do
         let page = Page "https://example.test/9" Nothing
-            r = Search.assemble accept (Selected [] []) (Selected [] []) ([Checked page (mkItem "https://example.test/9" "付属品" 500) []], []) [] []
+            r = Search.assemble accept (Selected [] []) (Selected [] []) ([Checked page (mkItem "https://example.test/9" "付属品" 500) [] []], []) [] []
         map (.url) r.findings @?= ["https://example.test/9"]
     , testCase "表：読んだものに、支払額・税込価格・送料・在庫・販売者・読んだ時刻が並ぶ" $ do
         let t = Report.table 3 15 res
@@ -487,10 +576,27 @@ searchTests =
     , testCase "JSON Lines：読んだもの・読めなかったもの・集計の順。どの行にも schema が付く" $ do
         let ls = Report.jsonLines res
             schema l = KM.lookup "schema" =<< (decodeStrict' l :: Maybe (KM.KeyMap Value))
-        map schema ls @?= map (Just . toJSON) (["meguri.result/1", "meguri.unread/1", "meguri.unread/1", "meguri.summary/1"] :: [Text])
-    , testCase "JSON Lines：ブロックで読めなかったものには、ブロックの事実が付く" $ do
-        let blocks = [KM.lookup "block" o | l <- Report.jsonLines res, Just o <- [decodeStrict' l :: Maybe (KM.KeyMap Value)], KM.lookup "schema" o == Just (toJSON ("meguri.unread/1" :: Text))]
-        blocks @?= [Just (toJSON (Nothing :: Maybe Block)), Just (toJSON akamai)]
+        map schema ls @?= map (Just . toJSON) (["meguri.result/2", "meguri.unread/2", "meguri.unread/2", "meguri.summary/1"] :: [Text])
+    , testCase "JSON Lines：読めなかったものには、取りに行かなかった理由か、うまくいかなかった取得が付く。ブロックの事実は、その取得の中にある" $ do
+        let rows = [o | l <- Report.jsonLines res, Just o <- [decodeStrict' l :: Maybe (KM.KeyMap Value)], KM.lookup "schema" o == Just (toJSON ("meguri.unread/2" :: Text))]
+        map (KM.lookup "why") rows @?= map (Just . toJSON) (["needs_browser", "blocked"] :: [Text])
+        map (KM.lookup "skipped") rows @?= [Just (toJSON (NeedsBrowser "HTTP では読めない販路")), Just Null]
+        map (KM.lookup "attempts") rows
+          @?= [ Just (toJSON ([] :: [Attempt]))
+              , Just (toJSON [object ["role" .= ("item" :: Text), "url" .= ("https://example.test/4" :: Text), "at" .= stamp, "outcome" .= ("blocked" :: Text), "block" .= akamai]])
+              ]
+    , testCase "JSON Lines：読んだものには、取得の並びが付く" $ do
+        let rows = [o | l <- Report.jsonLines res, Just o <- [decodeStrict' l :: Maybe (KM.KeyMap Value)], KM.lookup "schema" o == Just (toJSON ("meguri.result/2" :: Text))]
+        map (KM.lookup "attempts") rows @?= [Just (toJSON [tried DetailPage "https://example.test/1" Got Nothing])]
+    , testCase "送料の問い合わせがうまくいかなかったことは、その1件の注記に入る" $ do
+        let asked = [tried DetailPage "https://example.test/1" Got Nothing, tried ShipQuery "https://example.test/postage" (Blocked akamai) Nothing]
+            r = Search.assemble everything (Selected [] []) (Selected cs []) ([Checked (page 1) (mkItem "https://example.test/1" "WH-1000XM5" 20000) [] asked], []) [] cs
+        concatMap (.notes) (filter (.fromPage) r.findings)
+          @?= ["送料の問い合わせは、ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00）"]
+    , testCase "Markdown：個別ページを読めなかった候補に、その理由が出る" $ do
+        let md = Report.markdown 40 res
+        T.isInfixOf "個別ページを未読（ブラウザで開く：HTTP では読めない販路）" md @?= True
+        T.isInfixOf "個別ページを未読（ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00））" md @?= True
     , testCase "個別ページを読まないとき（--read 0）は、一覧で見かけたものを出す" $ do
         let t = Report.table 0 15 (Search.assemble everything (Selected [] []) (Selected cs []) ([], []) [] cs)
         T.isInfixOf "候補（未確認）4件" t @?= True
@@ -502,10 +608,10 @@ searchTests =
   page :: Int -> Page
   page n = Page ("https://example.test/" <> show n) (find (\c -> c.offer.url == "https://example.test/" <> show n) cs)
   checked =
-    [ Checked (page 1) (mkItem "https://example.test/1" "WH-1000XM5" 20000) ["価格 ¥20,500→¥20,000（一覧→個別ページ）"]
-    , Checked (page 2) (mkItem "https://example.test/2" "WH-1000XM5" 9000) []
+    [ Checked (page 1) (mkItem "https://example.test/1" "WH-1000XM5" 20000) ["価格 ¥20,500→¥20,000（一覧→個別ページ）"] [tried DetailPage "https://example.test/1" Got Nothing]
+    , Checked (page 2) (mkItem "https://example.test/2" "WH-1000XM5" 9000) [] [tried DetailPage "https://example.test/2" Got Nothing]
     ]
-  unread = [Unread (page 3) (OpenInBrowser "HTTP では読めない販路"), Unread (page 4) (SiteBlocked akamai)]
+  unread = [Unread (page 3) (Skipped (NeedsBrowser "HTTP では読めない販路")), Unread (page 4) (Tried [tried DetailPage "https://example.test/4" (Blocked akamai) Nothing])]
   akamai = Block {url = "https://example.test/4", status = 403, reason = "HTTP 403", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Nothing, at = stamp}
   res = Search.assemble accept (Selected catalog []) (Selected cs [Excluded "--min-price 12000" 0]) (checked, unread) [] cs
 
@@ -628,7 +734,7 @@ rankTests =
   listed = listedAt "x"
   listedAt :: Text -> Text -> Int -> Offer OnList
   listedAt s u p = (emptyOffer SearchList s u stamp) {name = got SearchList "WH-1000XM5", priceIncl = got SearchList (Yen p), shipping = got SearchList Free}
-  cand u p shared = Sighting "q" New ((listed u p) {keys = noKeys {sharedStockId = shared}})
+  cand u p shared = Sighting "q" New ((listed u p) {keys = noKeys {sharedStockId = shared}}) seenOnSearch
   confirmedItem :: Text -> Int -> Stock -> Maybe Text -> Reading
   confirmedItem u p st shared =
     toReading
@@ -757,11 +863,11 @@ sanitizeTests =
         map publicUrl ["https://item.rakuten.co.jp/a/b/", "http://localhost:8080/", "http://127.0.0.1/", "http://169.254.169.254/latest/", "http://[::1]/", "http://printer.local/", "http://intranet/", "https://user@example.test/a", "https://example.test@127.0.0.1/"]
           @?= [True, False, False, False, False, False, False, True, False]
     , testCase "同じ在庫（共通の在庫番号）は1つにして、安い方を残す" $ do
-        let mk site url price = Sighting "q" Used ((emptyOffer SearchList site url stamp) {priceIncl = got SearchList (Yen price), shipping = got SearchList Free, keys = noKeys {sharedStockId = Just "2238010018076"}})
+        let mk site url price = Sighting "q" Used ((emptyOffer SearchList site url stamp) {priceIncl = got SearchList (Yen price), shipping = got SearchList Free, keys = noKeys {sharedStockId = Just "2238010018076"}}) seenOnSearch
             ranked = cheapestFirst [mk "2ndstreet-yahoo" "https://example.test/y" 20460, mk "2ndstreet-rakuten" "https://example.test/r" 19800]
         map (\c -> c.offer.site) ranked @?= ["2ndstreet-rakuten"]
     , testCase "1候補は1行（改行やタブで行を割れない）" $
-        length (T.lines (sightingLine (Sighting "q" New (tidyOffer hostile)))) @?= 1
+        length (T.lines (sightingLine (Sighting "q" New (tidyOffer hostile) seenOnSearch))) @?= 1
     ]
  where
   hostile :: Offer OnList
@@ -800,11 +906,15 @@ catalogTests =
     , testCase "channels.md に全サイトが載る" $
         [s.sid | s <- catalog, not (("`" <> s.sid <> "`") `T.isInfixOf` sitesMd [])] @?= []
     , testCase "集計は、サイトごとに1行" $ do
-        let cov = [Coverage "rakuten" q k (Found 3 (Just (Yen 100))) Nothing "HTTP" stamp | q <- ["a", "b"], k <- [New, Used]]
+        let cov = [covOf "rakuten" q k (Just (Yen 100)) [tried SearchPage "https://example.test/s" Got (Just (Listed 3 False 3))] | q <- ["a", "b"], k <- [New, Used]]
         length (T.lines (coverageSummary cov)) @?= 2
     , testCase "集計：ブロックの行には、根拠・題・Server・時刻と、ブロックされたページのURLが出る。同じブロックは1つにまとめる" $ do
         let b = Block {url = "https://search.rakuten.co.jp/search/mall/a/", status = 403, reason = "HTTP 403", title = Just "Access Denied", server = Just "AkamaiGHost", retryAfter = Nothing, at = stamp}
-            cov = [Coverage "rakuten" q New (Blocked b) (Just ("https://search.rakuten.co.jp/search/mall/" <> q <> "/")) "HTTP" stamp | q <- ["a", "b"]]
+            -- 2つ目の検索は、同じホストがもうブロックされているので、取りに行かない
+            cov =
+              [ covOf "rakuten" "a" New Nothing [tried SearchPage "https://search.rakuten.co.jp/search/mall/a/" (Blocked b) Nothing]
+              , covOf "rakuten" "b" New Nothing [tried SearchPage "https://search.rakuten.co.jp/search/mall/b/" (HostBlocked b) Nothing]
+              ]
         T.lines (coverageSummary cov)
           @?= [ "どこまで探したか：ブロック2（サイト×検索語×種類の行数）"
               , "rakuten\t「a」新 ブロック：HTTP 403・題「Access Denied」・Server AkamaiGHost（11/20 23:00）\thttps://search.rakuten.co.jp/search/mall/a/"

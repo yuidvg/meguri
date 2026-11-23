@@ -4,11 +4,11 @@ module Main (main) where
 import Data.ByteString.Char8 qualified as BC
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
-import Data.Time (getCurrentTime)
 import Meguri.Catalog
 import Meguri.Check qualified as Check
+import Data.Aeson (Value (..), toJSON)
+import Data.Aeson.KeyMap qualified as KM
 import Meguri.Extract.Html (parse)
-import Meguri.Fetch.Encoding (decodeBody)
 import Meguri.Fetch.Http
 import Meguri.Judge (asker, newJev)
 import Meguri.Query (Query (..), Seen)
@@ -25,7 +25,6 @@ import Meguri.Scope qualified as Scope
 import Meguri.Selection (Ask, Criterion, Judge (..), JudgeBy (..), Selected (..), Selection (..), select)
 import Meguri.List
 import Meguri.Ship (Pref, parsePref, shipPlan, supported)
-import Meguri.Text (jstStamp)
 import Meguri.Types
 import Meguri.Read (Checked (..), Page (..))
 import Options.Applicative
@@ -225,16 +224,14 @@ dispatch = \case
       Left e -> judgeFailed e
       Right res -> do
         -- 実行の記録（書くだけ。あとのコマンドは読まない）
-        writeLines (dir </> "coverage.jsonl") (map (line "meguri.coverage/2") res.coverage)
-        writeLines (dir </> "sightings.jsonl") (map (line "meguri.sighting/1") res.sightings)
-        writeLines (dir </> "readings.jsonl") [line "meguri.reading/1" x.reading | x <- res.checked]
-        let -- 英字で終わる型番を、英字を外した語でも探した販路（search と同じ組み立て）
-            widened = widenedNote (lookups req.query.terms req.scope.markets res.channels.chosen)
-            foot = "実行の記録 " <> rid <> "：" <> toS dir <> "（readings.jsonl＝読んだ個別ページの全項目と出どころ、sightings.jsonl＝一覧で見かけた売り物の全部、coverage.jsonl、pages/＝取ったページ。7日で消える）\n"
+        writeLines (dir </> "coverage.jsonl") (map (line "meguri.coverage/3") res.coverage)
+        writeLines (dir </> "sightings.jsonl") (map (line "meguri.sighting/2") res.sightings)
+        writeLines (dir </> "readings.jsonl") [line "meguri.reading/2" (withAttempts x.reading x.attempts) | x <- res.checked]
+        let foot = "実行の記録 " <> rid <> "：" <> toS dir <> "（readings.jsonl＝読んだ個別ページの全項目と出どころ、sightings.jsonl＝一覧で見かけた売り物の全部、coverage.jsonl、pages/＝取ったページ。7日で消える）\n"
         case c.format of
           FJsonl -> traverse_ BC.putStrLn (Report.jsonLines res)
           FMd -> TIO.putStr (Report.markdown 40 res)
-          FTable -> TIO.putStr (fitted (\n -> Report.table req.effort.readsPerLookup n res <> widened <> "\n" <> foot) limit)
+          FTable -> TIO.putStr (fitted (\n -> Report.table req.effort.readsPerLookup n res <> "\n" <> foot) limit)
         exitByCoverage res.coverage
   CmdSold c qs limit accept -> do
     needKey (map (.by) accept.judges)
@@ -243,32 +240,30 @@ dispatch = \case
     f <- newFetcher paths.locksDir Nothing
     let closed = "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p={q}"
         -- 英字で終わる型番は、英字を外した語でも探す（新しい順に100件まで）。題にもとの語を含むものだけを足す
-        wider def (w, has) = Wider (searchUrl def.enc (closed <> "&n=100") w) has
+        wider def (w, has) = Wider w (searchUrl def.enc (closed <> "&n=100") w) has
         jobs =
           [ Lookup def q Used (Just (searchUrl def.enc closed q)) Nothing (wider def <$> widen q)
           | Just def <- [lookupSite "yahuoku"]
           , q <- qs
           ]
-        widened =
-          T.unlines
-            [ "「" <> q <> "」は「" <> w <> "」でも探し（新しい順に100件まで）、題に" <> T.intercalate "・" ["「" <> h <> "」" | h <- has] <> "を含むものを足した"
-            | q <- qs
-            , Just (w, has) <- [widen q]
-            ]
     (cov, sold) <- listAll f jobs
+    -- 語を広げた検索が取れたときの但し書き
+    let widened = T.unlines ["語を広げた検索は、新しい順に100件までを見た" | or [fine a | c <- cov, a <- attemptsOf c.did, WiderPage _ _ <- [a.role]]]
     ask <- getAsk
     selected <- select ask Query.seenRows accept Query.ofSighting sold
     case selected of
       Left e -> judgeFailed e
       Right shown -> case c.format of
-        FJsonl -> traverse_ (BC.putStrLn . line "meguri.sold/1") (cheapestFirst shown.chosen)
+        FJsonl -> traverse_ (BC.putStrLn . line "meguri.sold/2") (cheapestFirst shown.chosen)
         _ -> TIO.putStr (soldTable limit shown.chosen <> "\n" <> coverageSummary cov <> widened)
     exitByCoverage cov
   CmdItem c url -> do
     paths <- getPaths
     f <- newFetcher paths.locksDir Nothing
     pref <- getPref
-    readItemShipped f pref url >>= either itemFailed (printItem c)
+    readItemShipped f Nothing pref url >>= \case
+      ItemRead rec as -> printItem c rec as
+      other -> itemFailed other
   CmdCheck c write everything only -> do
     paths <- getPaths
     purgeOld paths
@@ -297,37 +292,31 @@ dispatch = \case
       _ -> do
         paths <- getPaths
         f <- newFetcher paths.locksDir Nothing
-        r <- readItemShipped f pref url
+        r <- readItemShipped f Nothing pref url
         case r of
-          Left e -> itemFailed e
-          Right rec -> do
-            printItem c rec
-            -- 送料が計算の結果に置き換わっていなければ、問い合わせに失敗している
+          ItemRead rec as -> do
+            printItem c rec as
+            -- 送料が計算の結果に置き換わっていなければ、問い合わせがうまくいっていない
             case rec.offer.shipping.source of
               ItemPage ShippingCalc -> pure ()
-              _ -> hPutStrLn stderr ("meguri: 送料の問い合わせに失敗した（記録の送料はページの値のまま）" :: Text) >> exitWith (ExitFailure 3)
+              _ -> do
+                let why = maybe "応答から送料を読めなかった" troubleShort (find (\a -> a.role == ShipQuery) (troubles as))
+                hPutStrLn stderr ("meguri: 送料の問い合わせがうまくいかなかった（記録の送料はページの値のまま）。" <> why)
+                exitWith (ExitFailure 3)
+          other -> itemFailed other
   CmdRecall c qs limit -> do
     paths <- getPaths
     f <- newFetcher paths.locksDir Nothing
     results <- for qs $ \q -> do
-      caa <- fetchReq f (Recall.caaRequest q)
-      cpsc <- fetchPage f (Recall.cpscUrl q)
-      now <- jstStamp <$> getCurrentTime
-      let text p = snd (decodeBody p.contentType p.body)
-          one site method page parseOk = case page of
-            Left (FetchBlocked b) -> (Coverage site q New (Blocked b) Nothing method now, [])
-            Left (FetchFailed e) -> (Coverage site q New (Error e) Nothing method now, [])
-            Right p -> case classify p.status (text p) of
-              PageOk ->
-                let rs = parseOk (jstStamp p.fetchedAt) (text p)
-                 in (Coverage site q New (if null rs then Zero else Found (length rs) Nothing) Nothing method (jstStamp p.fetchedAt), rs)
-              PageStopped why -> (Coverage site q New (Stopped (T.take 10 now) why) Nothing method now, [])
-              PageNotFound -> (Coverage site q New (Error "HTTP 404") Nothing method now, [])
-              PageError why -> (Coverage site q New (Error why) Nothing method now, [])
-      pure
-        [ one "recall-caa" "HTTP（読み取り専用のPOST）" caa (\stamp body -> Recall.parseCaa q stamp (parse body))
-        , one "recall-cpsc" "HTTP（公式API）" cpsc (Recall.parseCpsc q)
-        ]
+      let one site method req parseOk = do
+            (a, loaded) <- attempt f Nothing SearchPage req
+            -- 読むのは、読めるページが返ったときだけ
+            let rs = [x | a.outcome == Got, Just p <- [loaded], x <- parseOk p.at p.text]
+                listed = [Listed {offers = length rs, zero = null rs, kept = length rs} | a.outcome == Got]
+            pure (Coverage {site, term = q, market = New, url = Nothing, did = Tried [a {listed = head listed}], cheapest = Nothing, method, at = a.at}, rs)
+      caa <- one "recall-caa" "HTTP（読み取り専用のPOST）" (Recall.caaRequest q) (\stamp body -> Recall.parseCaa q stamp (parse body))
+      cpsc <- one "recall-cpsc" "HTTP（公式API）" (page (Recall.cpscUrl q)) (Recall.parseCpsc q)
+      pure [caa, cpsc]
     let cov = map fst (concat results)
         recalls = concatMap snd (concat results)
     case c.format of
@@ -340,17 +329,20 @@ dispatch = \case
             <> ["", coverageSummary cov]
     exitByCoverage cov
  where
-  printItem c rec = case c.format of
-    FJsonl -> BC.putStrLn (line "meguri.item/1" rec)
-    _ -> TIO.putStr (readingReport rec)
+  -- 取得の並びも出す。表には、うまくいかなかった取得だけを足す
+  printItem c rec as = case c.format of
+    FJsonl -> BC.putStrLn (line "meguri.item/2" (withAttempts rec as))
+    _ -> TIO.putStr (readingReport rec <> T.unlines ["うまくいかなかった取得\t" <> troubleNote a <> "\t" <> a.url | a <- troubles as])
   usage :: Text -> IO a
   usage msg = hPutStrLn stderr ("meguri: " <> msg) >> exitWith (ExitFailure 2)
-  -- 取りに行かない販路は使い方の誤り（2）。ブロック・取得の失敗は 3
-  itemFailed :: ItemError -> IO a
+  -- 取りに行かない販路は使い方の誤り（2）。取りに行って読めなかったら 3
+  itemFailed :: ItemResult -> IO a
   itemFailed = \case
-    ItemUsage e -> usage e
-    ItemBlocked b -> hPutStrLn stderr ("meguri: ブロックされた：" <> blockShort b <> "（" <> b.at <> " に " <> b.url <> " を取ったとき）") >> exitWith (ExitFailure 3)
-    ItemFetch e -> hPutStrLn stderr ("meguri: " <> e) >> exitWith (ExitFailure 3)
+    ItemSkipped why -> usage (skipShort why)
+    ItemUnread as -> do
+      for_ (troubles as) $ \a -> hPutStrLn stderr ("meguri: " <> troubleNote a <> "　" <> a.url)
+      exitWith (ExitFailure 3)
+    ItemRead _ _ -> exitSuccess
   -- 標準出力は 30KB 以内に収める。収まらなければ、枠ごとの行数を減らす。
   -- それでも収まらなければ（検索語が多いとき）、行を切って、続きは実行の記録に任せる
   fitted :: (Int -> Text) -> Int -> Text
@@ -402,11 +394,17 @@ getPref = do
 maxStdout :: Int
 maxStdout = 30000
 
+-- | 記録に、取得の並び（attempts）を足す
+withAttempts :: Reading -> [Attempt] -> Value
+withAttempts rec as = case toJSON rec of
+  Object o -> Object (KM.insert "attempts" (toJSON as) o)
+  v -> v
+
 -- | 0：成功（一部のサイトがブロックでも成功）。3：取りに行った全サイトで失敗。
 exitByCoverage :: [Coverage] -> IO ()
 exitByCoverage cov =
-  let tried = [c | c <- cov, "HTTP" `T.isPrefixOf` c.method]
-      ok = [c | c <- tried, succeeded c.status]
+  let tried = [statusOf c | c <- cov, Tried _ <- [c.did]]
+      ok = [st | st <- tried, succeeded st]
    in when (not (null tried) && null ok) (exitWith (ExitFailure 3))
  where
   succeeded = \case

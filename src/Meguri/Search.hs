@@ -28,6 +28,7 @@ import Meguri.Fetch.Http (Fetcher)
 import Meguri.List (listThen, lookups)
 import Meguri.Query
 import Meguri.Read
+import Meguri.Render (troubleNote)
 import Meguri.Scope (Scope (..), channelsIn)
 import Meguri.Selection
 import Meguri.Ship (Pref)
@@ -119,7 +120,8 @@ assemble accept channels accepted (checked0, unread0) coverage sightings =
       -- 個別ページの値で、条件をもう一度かける（一覧と個別ページで価格が違うことがある）
       again = sift accept.criteria (\c -> ofReading c.page.sighting c.reading) fromPicked
       shown = fromNamed <> again.chosen
-      drifts = Map.fromList [(c.reading.offer.url, c.drift) | c <- shown]
+      -- 一覧の値からの変化と、うまくいかなかった取得（送料の問い合わせなど）は、その1件の注記に入れる
+      drifts = Map.fromList [(c.reading.offer.url, c.drift <> map troubleNote (troubles c.attempts)) | c <- shown]
       readUrls = Set.fromList (map (\c -> c.page.url) checked)
       -- 読めなかったもの（ブラウザが要る・失敗）は、一覧の値のまま残す
       leftover = [s | s <- accepted.chosen, s.offer.url `Set.notMember` readUrls]
