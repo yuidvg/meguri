@@ -4,7 +4,7 @@
 --
 -- * 外のコマンド：行を JSON Lines で標準入力に渡し、残すものの id を標準出力で受け取る。
 -- * jev：1行につき1回、その行を「状態」として、はい／いいえの質問をする。「はい」の確率が 0.5 以上なら残す。
---   @OPENROUTER_API_KEY@ が要る。キーは、ログにもキャッシュのキーにも入れない。答えは15分キャッシュする。
+--   @OPENROUTER_API_KEY@ が要る。キーはログに入れない。答えはキャッシュしない。
 module Meguri.Judge
   ( JevClient (..)
   , newJev
@@ -20,25 +20,19 @@ module Meguri.Judge
 
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Exception (try)
-import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (Value (..), decodeStrict', encode, object, (.=))
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString qualified as BS
-import Data.ByteString.Base16 qualified as B16
 import Data.ByteString.Char8 qualified as BC
 import Data.ByteString.Lazy qualified as BL
 import Data.Scientific (toBoundedInteger, toRealFloat)
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Data.Text.Encoding qualified as TE
-import Data.Time (diffUTCTime, getCurrentTime)
 import Meguri.Selection (Ask, JudgeBy (..))
 import Network.HTTP.Client qualified as H
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Status (statusCode)
 import Protolude hiding (try)
-import System.Directory (createDirectoryIfMissing, doesFileExist, getModificationTime)
-import System.FilePath ((</>))
 import System.IO (hClose, hSetBinaryMode)
 import System.Process (CreateProcess (..), StdStream (..), shell, waitForProcess, withCreateProcess)
 import System.Timeout (timeout)
@@ -49,21 +43,18 @@ data JevClient = JevClient
   , model :: Text
   , manager :: H.Manager
   , slots :: QSem
-  , -- | 答えのキャッシュを置く場所
-    cacheDir :: FilePath
-  , fresh :: Bool
   }
 
 -- | 既定のモデル。確率のしきい値はモデルごとに意味が変わるので、版を固定する
 defaultModel :: Text
 defaultModel = "typesafe/jev-1.14"
 
--- | キー・モデルの名前・キャッシュの場所から作る。同時に呼ぶのは8本まで
-newJev :: Text -> Maybe Text -> FilePath -> Bool -> IO JevClient
-newJev key model cacheDir fresh = do
+-- | キーとモデルの名前から作る。同時に呼ぶのは8本まで
+newJev :: Text -> Maybe Text -> IO JevClient
+newJev key model = do
   manager <- newTlsManager
   slots <- newQSem 8
-  pure JevClient {key, model = fromMaybe defaultModel model, manager, slots, cacheDir, fresh}
+  pure JevClient {key, model = fromMaybe defaultModel model, manager, slots}
 
 -- | 判定の頼み先を決める。jev は、キーがあるときだけ使える
 asker :: Maybe JevClient -> Ask
@@ -187,26 +178,7 @@ askJev j question rows = do
   rowId = \case
     Object o -> idOf =<< KM.lookup "id" o
     _ -> Nothing
-  -- キャッシュのキーは、頼みの中身（モデル・質問・状態）のハッシュ。APIキーは入らない
-  probability req = do
-    let payload = BL.toStrict (encode req)
-        file = j.cacheDir </> toS (TE.decodeLatin1 (B16.encode (SHA256.hash payload)))
-    cached <- if j.fresh then pure Nothing else readFresh file
-    case cached of
-      Just p -> pure (Right p)
-      Nothing -> do
-        r <- bracket_ (waitQSem j.slots) (signalQSem j.slots) (post payload)
-        for_ r $ \p -> do
-          createDirectoryIfMissing True j.cacheDir
-          BS.writeFile file (show p)
-        pure r
-  readFresh file = do
-    ok <- doesFileExist file
-    if not ok
-      then pure Nothing
-      else do
-        age <- diffUTCTime <$> getCurrentTime <*> getModificationTime file
-        if age > 15 * 60 then pure Nothing else readMaybe . BC.unpack <$> BS.readFile file
+  probability req = bracket_ (waitQSem j.slots) (signalQSem j.slots) (post (BL.toStrict (encode req)))
   post payload = do
     r <- try $ do
       base <- H.parseRequest "https://openrouter.ai/api/alpha/decisions"

@@ -94,7 +94,7 @@ listThen f deadline jobs next = do
         pure (cov, cands, Just a)
       Nothing -> do
         now <- jstStamp <$> getCurrentTime
-        pure (Coverage {site = j.channel.sid, term = j.term, market = j.market, status = Error "時間切れ（--time を延ばすか、もう一度走らせる）", url = j.url, method = "HTTP", at = now}, [], Nothing)
+        pure (Coverage {site = j.channel.sid, term = j.term, market = j.market, status = Error "時間切れ（--time で延ばせる）", url = j.url, method = "HTTP", at = now}, [], Nothing)
   within act = case deadline of
     Nothing -> Just <$> act
     Just d -> do
@@ -140,7 +140,7 @@ fetchList f blocked j u ex covAt = do
     Left st -> do
       now <- jstStamp <$> getCurrentTime
       pure (covAt now st "HTTP", [])
-    -- 確認時刻は、ページを取った時刻（キャッシュなら、もとの取得の時刻）
+    -- 確認時刻は、ページを取った時刻
     Right (out, (method, fetched)) -> do
       -- 続きのページ（価格.com のショップ一覧など）。失敗しても、取れた分は残す
       more <- followAll (4 :: Int) out.follow
@@ -170,7 +170,7 @@ fetchList f blocked j u ex covAt = do
         let (_, text) = decodeBody p.contentType p.body
             ctx = ListCtx {siteId = j.channel.sid, term = j.term, market = j.market, pageUrl = target, httpStatus = p.status, stamp = jstStamp p.fetchedAt}
             out = ex ctx (parse text) text
-            method = (if p.cached then "HTTP（キャッシュ）" else "HTTP" :: Text, jstStamp p.fetchedAt)
+            method = ("HTTP" :: Text, jstStamp p.fetchedAt)
         case classify p.status text of
           PageBlocked why -> do
             atomically (modifyTVar' blocked (Set.insert (hostOf target)))

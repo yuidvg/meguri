@@ -50,7 +50,6 @@ library
     Meguri.Extract.NextData
     Meguri.Extract.OpenGraph
     Meguri.Extract.Price
-    Meguri.Fetch.Cache
     Meguri.Fetch.Encoding
     Meguri.Fetch.Http
     Meguri.Selection
@@ -96,6 +95,7 @@ library
     , data-default
     , base16-bytestring
     , directory
+    , filelock
     , filepath
     , http-client
     , http-client-tls
@@ -126,8 +126,11 @@ test-suite meguri-test
   type:           exitcode-stdio-1.0
   hs-source-dirs: test
   main-is:        Main.hs
+  -- ロックファイルを待つ（flock でふさがる）あいだも、ほかのスレッドが動けるようにする
+  ghc-options:    -threaded
   build-depends:
     , aeson-pretty
+    , async
     , directory
     , filepath
     , hedgehog
@@ -136,3 +139,4 @@ test-suite meguri-test
     , tasty-golden
     , tasty-hedgehog
     , tasty-hunit
+    , temporary

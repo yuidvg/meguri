@@ -38,9 +38,8 @@ import System.IO (hSetEncoding, utf8)
 data Format = FTable | FJsonl | FMd
   deriving stock (Eq, Show)
 
-data Common = Common
+newtype Common = Common
   { format :: Format
-  , fresh :: Bool
   }
 
 data Command
@@ -59,7 +58,6 @@ common =
     <$> option
       (eitherReader readFormat)
       (long "format" <> metavar "table|jsonl|md" <> value FTable <> help "出力の形（既定は table）")
-    <*> switch (long "fresh" <> help "キャッシュを使わない")
  where
   readFormat = \case
     "table" -> Right FTable
@@ -149,7 +147,7 @@ searchP =
     <*> option auto (long "read" <> metavar "N" <> value 3 <> help "どこまで：探している物と認めたもののうち、販路と新品・中古の組ごとに安い順で N 件の個別ページを読む（既定は 3。0 なら一覧だけ）")
     <*> many (strOption (long "url" <> metavar "URL" <> help "どこを：この個別ページも読んで、結果に入れる（検索がJSで描画される販路で、ブラウザで見つけた商品など）"))
     <*> many (option (eitherReader readPage) (long "page" <> metavar "URL=FILE" <> help "どこを：通常のブラウザで保存したHTMLを、そのURLの個別ページとして読んで、結果に入れる"))
-    <*> option auto (long "time" <> metavar "秒" <> value 60 <> help "どこまで：全体にかける時間の上限（既定は 60）。過ぎたら、読めた分だけで返す。もう一度走らせると、キャッシュを使って続きを読む")
+    <*> option auto (long "time" <> metavar "秒" <> value 60 <> help "どこまで：全体にかける時間の上限（既定は 60）。過ぎたら、読めた分だけで返し、読めなかったものを「時間切れ」として出す")
     <*> option auto (long "limit" <> metavar "N" <> value 15 <> help "枠ごとに標準出力に出す数（既定は 15）")
  where
   readMarket = \case
@@ -228,9 +226,9 @@ dispatch = \case
     paths <- getPaths
     purgeOld paths
     (rid, dir) <- newRun paths
-    f <- newFetcher paths.httpCache c.fresh (Just (dir </> "pages"))
+    f <- newFetcher paths.locksDir (Just (dir </> "pages"))
     pref <- getPref
-    ask <- getAsk paths c.fresh
+    ask <- getAsk
     r <- Search.search ask f pref req
     case r of
       Left e -> judgeFailed e
@@ -249,14 +247,14 @@ dispatch = \case
     needKey (map (.by) accept.judges)
     paths <- getPaths
     purgeOld paths
-    f <- newFetcher paths.httpCache c.fresh Nothing
+    f <- newFetcher paths.locksDir Nothing
     let jobs =
           [ Lookup def q Used (Just (searchUrl def.enc "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p={q}" q)) Nothing
           | Just def <- [lookupSite "yahuoku"]
           , q <- qs
           ]
     (cov, sold) <- listAll f jobs
-    ask <- getAsk paths c.fresh
+    ask <- getAsk
     selected <- select ask Query.seenRows accept Query.ofSighting sold
     case selected of
       Left e -> judgeFailed e
@@ -266,7 +264,7 @@ dispatch = \case
     exitByCoverage cov
   CmdItem c url saved -> do
     paths <- getPaths
-    f <- newFetcher paths.httpCache c.fresh Nothing
+    f <- newFetcher paths.locksDir Nothing
     pref <- getPref
     r <- readItemShipped f pref url saved
     case r of
@@ -276,8 +274,7 @@ dispatch = \case
   CmdCheck c write everything only -> do
     paths <- getPaths
     purgeOld paths
-    -- 診断は、いつも取り直す（キャッシュを使わない）
-    f <- newFetcher paths.httpCache True Nothing
+    f <- newFetcher paths.locksDir Nothing
     results <- Check.checkAll f (Check.CheckOpts everything only)
     case c.format of
       FJsonl -> traverse_ (\h -> putStrLn (T.intercalate "\t" [h.sid, h.day, h.search, h.item, show h.asExpected])) results
@@ -301,7 +298,7 @@ dispatch = \case
       (_, Nothing) -> usage ("このサイトは送料を計算できない（対応：" <> T.intercalate "・" supported <> "）")
       _ -> do
         paths <- getPaths
-        f <- newFetcher paths.httpCache c.fresh Nothing
+        f <- newFetcher paths.locksDir Nothing
         r <- readItemShipped f pref url Nothing
         case r of
           Left (ItemUsage e) -> usage e
@@ -314,7 +311,7 @@ dispatch = \case
               _ -> hPutStrLn stderr ("meguri: 送料の問い合わせに失敗した（記録の送料はページの値のまま）" :: Text) >> exitWith (ExitFailure 3)
   CmdRecall c qs limit -> do
     paths <- getPaths
-    f <- newFetcher paths.httpCache c.fresh Nothing
+    f <- newFetcher paths.locksDir Nothing
     results <- for qs $ \q -> do
       caa <- fetchReq f (Recall.caaRequest q)
       cpsc <- fetchPage f (Recall.cpscUrl q)
@@ -364,12 +361,12 @@ dispatch = \case
              in T.unlines kept <> "（長いので、ここで切った。全体は、実行の記録の coverage.jsonl・readings.jsonl）\n" <> fromMaybe "" (lastMay ls) <> "\n"
 
 -- | 判定の頼み先。jev は、OPENROUTER_API_KEY があるときだけ使える（モデルは MEGURI_JEV_MODEL で変えられる）
-getAsk :: Paths -> Bool -> IO Ask
-getAsk paths fresh = do
+getAsk :: IO Ask
+getAsk = do
   key <- lookupEnv "OPENROUTER_API_KEY"
   model <- lookupEnv "MEGURI_JEV_MODEL"
   case key of
-    Just k | not (null k) -> asker . Just <$> newJev (toS k) (toS <$> mfilter (not . null) model) paths.judgeCache fresh
+    Just k | not (null k) -> asker . Just <$> newJev (toS k) (toS <$> mfilter (not . null) model)
     _ -> pure (asker Nothing)
 
 -- | jev に聞く判定があるのにキーが無ければ、取りに行く前にやめる

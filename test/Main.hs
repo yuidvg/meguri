@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Control.Concurrent.Async (mapConcurrently)
 import Data.Aeson (ToJSON, Value (Object), object, toJSON, (.=))
 import Data.Aeson.Encode.Pretty (Config (..), defConfig, encodePretty')
 import Data.Aeson (decodeStrict')
@@ -9,6 +10,7 @@ import Data.ByteString.Char8 qualified as BC
 import Data.Set qualified as Set
 import Data.ByteString.Lazy qualified as BL
 import Data.Text qualified as T
+import Data.Time (addUTCTime, diffUTCTime, getCurrentTime)
 import Hedgehog (forAll, property, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -20,7 +22,7 @@ import Meguri.Extract.Html (parse)
 import Meguri.Extract.Microdata (itemprop)
 import Meguri.Extract.Price
 import Meguri.Fetch.Encoding
-import Meguri.Fetch.Http (PageClass (..), classify)
+import Meguri.Fetch.Http (PageClass (..), classify, newFetcher, takeTurn)
 import Meguri.Item (extractItem)
 import Meguri.Arrange (Frame (..), arrange)
 import Meguri.Recall qualified as Recall
@@ -36,6 +38,7 @@ import Meguri.Search qualified as Search
 import Meguri.Report qualified as Report
 import Meguri.Read (Checked (..), Page (..), Unread (..), UnreadReason (..), cheapest, driftFrom, tracked)
 import Meguri.Render (sightingLine, coverageSummary, cheapestFirst, sitesMd)
+import Meguri.Run (Paths (..), newRun, purgeOld)
 import Meguri.Sanitize (publicUrl, tidyOffer, usableUrl)
 import Meguri.List
 import Meguri.Site.Common
@@ -44,6 +47,9 @@ import Meguri.Sites
 import Meguri.Text
 import Meguri.Types
 import Protolude
+import System.Directory (createDirectory, createDirectoryIfMissing, doesDirectoryExist, listDirectory, setModificationTime)
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
 import Test.Tasty
 import Test.Tasty.Golden (goldenVsString)
 import Test.Tasty.HUnit
@@ -67,6 +73,7 @@ main =
       , acceptTests
       , searchTests
       , fetchTests
+      , concurrencyTests
       , microdataTests
       , sanitizeTests
       , catalogTests
@@ -585,7 +592,7 @@ storeTests =
         (r.offer.priceIncl.value, r.offer.priceExcl.value) @?= (Nothing, Just (Yen 560))
     ]
 
--- | 送料の問い合わせ（配送先は、キャッシュにも実行のページにも残さない）
+-- | 送料の問い合わせ（配送先は、実行の記録に残さない）
 shipTests :: TestTree
 shipTests =
   testGroup
@@ -677,6 +684,47 @@ fetchTests =
     , testCase "200 は成功" $ classify 200 "<html>ok" @?= PageOk
     , testCase "500 は失敗" $ classify 500 "<html>error" @?= PageError "HTTP 500"
     ]
+
+-- | meguri を同時にいくつ走らせてもよいこと：実行の記録のフォルダ、掃除、同じホストへの順番
+concurrencyTests :: TestTree
+concurrencyTests =
+  testGroup
+    "同時に走らせる"
+    [ testCase "同じ秒に走らせても、実行の記録は別のフォルダに書く" $ withTempDir $ \d -> do
+        runs <- mapConcurrently (const (newRun (paths d))) [1 .. 5 :: Int]
+        length (ordNub (map snd runs)) @?= 5
+        for_ runs $ \(_, dir) -> doesDirectoryExist dir >>= (@?= True)
+    , testCase "掃除を2つ同時に走らせても落ちず、7日より古い記録と、古い版の残りだけを消す" $ withTempDir $ \d -> do
+        let p = paths d
+        old <- addUTCTime (-8 * 86400) <$> getCurrentTime
+        createDirectoryIfMissing True p.runsDir
+        for_ [1 .. 300 :: Int] $ \i -> do
+          let dir = p.runsDir </> ("old-" <> show i)
+          createDirectory dir
+          setModificationTime dir old
+        createDirectory (p.runsDir </> "new")
+        writeFile (p.runsDir </> "latest") "20261121-115633"
+        createDirectoryIfMissing True (d </> "http")
+        writeFile (d </> "http" </> "x.meta") "{}"
+        _ <- concurrently (purgeOld p) (purgeOld p)
+        listDirectory p.runsDir >>= (@?= ["new"])
+        doesDirectoryExist (d </> "http") >>= (@?= False)
+    , testCase "同じホストへは、ロックファイルを分け合うほかの取得器（ほかのプロセス）とあわせても2秒空ける" $ withTempDir $ \d -> do
+        f1 <- newFetcher (d </> "locks") Nothing
+        f2 <- newFetcher (d </> "locks") Nothing
+        (t1, t2) <- concurrently (takeTurn f1 "example.com" getCurrentTime) (takeTurn f2 "example.com" getCurrentTime)
+        assertBool "2秒空いていない" (abs (diffUTCTime t2 t1) >= 1.9)
+    , testCase "ホストが違えば待たない" $ withTempDir $ \d -> do
+        f <- newFetcher (d </> "locks") Nothing
+        (t1, t2) <- concurrently (takeTurn f "a.example.com" getCurrentTime) (takeTurn f "b.example.com" getCurrentTime)
+        assertBool "待っている" (abs (diffUTCTime t2 t1) < 1)
+    ]
+ where
+  paths d = Paths {runsDir = d </> "runs", locksDir = d </> "locks", leftovers = [d </> "http", d </> "judge", d </> "runs" </> "latest"]}
+
+-- | 使い捨てのフォルダの中で試す
+withTempDir :: (FilePath -> IO a) -> IO a
+withTempDir = withSystemTempDirectory "meguri-test"
 
 -- | microdata は Product の範囲の中だけを読む
 microdataTests :: TestTree

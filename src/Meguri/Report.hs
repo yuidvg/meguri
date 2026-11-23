@@ -27,7 +27,7 @@ readFindings r = [e | e <- r.findings, e.fromPage]
 unreadWhy :: UnreadReason -> (Text, Text)
 unreadWhy = \case
   OpenInBrowser why -> ("needs_browser", why)
-  OutOfTime -> ("timed_out", "時間の上限までに順番が来なかった（販路の応答が遅い）。もう一度走らせると、キャッシュを使って続きを読む。--time で延ばせる")
+  OutOfTime -> ("timed_out", "時間の上限までに順番が来なかった（販路の応答が遅い）。--time で延ばせる")
   Failed why -> ("failed", why)
 
 unreadLabel :: Text -> Text

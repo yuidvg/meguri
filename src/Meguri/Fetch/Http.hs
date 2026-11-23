@@ -1,7 +1,11 @@
--- | ページの取得。同じホストへは同時に1本・間隔2秒以上、全体の同時数は8。
+-- | ページの取得。応答はキャッシュしない。
+--
+-- 同じホストへは、ほかの meguri のプロセスとあわせて同時に1本、間隔は2秒以上（'takeTurn'）。
+-- 全体の同時数は、プロセスごとに8。
 module Meguri.Fetch.Http
   ( Fetcher
   , newFetcher
+  , takeTurn
   , Fetched (..)
   , fetchPage
   , fetchReq
@@ -15,14 +19,15 @@ module Meguri.Fetch.Http
   ) where
 
 import Control.Exception (try)
+import Crypto.Hash.SHA256 qualified as SHA256
 import Data.ByteString qualified as BS
+import Data.ByteString.Base16 qualified as B16
 import Data.ByteString.Lazy qualified as BL
 import Data.List (lookup)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Data.Time (UTCTime, addUTCTime, diffUTCTime, getCurrentTime)
-import Meguri.Fetch.Cache
+import Data.Time (UTCTime, getCurrentTime)
 import Meguri.Sanitize (publicUrl)
 import Network.HTTP.Client
 import Data.Default (def)
@@ -32,6 +37,7 @@ import Network.TLS qualified as TLS
 import Network.HTTP.Types (statusCode)
 import Protolude hiding (try)
 import System.Directory (createDirectoryIfMissing)
+import System.FileLock (SharedExclusive (..), lockFile, unlockFile)
 import System.FilePath ((</>))
 
 version :: Text
@@ -46,15 +52,17 @@ userAgent = "meguri/" <> version <> " (+" <> repoUrl <> ")"
 
 data Fetcher = Fetcher
   { manager :: Manager
-  , hosts :: MVar (Map Text (MVar UTCTime))
+  , -- | プロセスの中で、ホストごとに順番を待つ
+    hosts :: MVar (Map Text (MVar ()))
   , slots :: QSem
-  , cacheDir :: FilePath
-  , fresh :: Bool
-  , pagesDir :: Maybe FilePath
+  , -- | ホストごとのロックファイルを置く場所。ほかの meguri のプロセスと分け合う
+    locksDir :: FilePath
+  , -- | 取ったページを置く場所（実行の記録）
+    pagesDir :: Maybe FilePath
   }
 
-newFetcher :: FilePath -> Bool -> Maybe FilePath -> IO Fetcher
-newFetcher cacheDir fresh pagesDir = do
+newFetcher :: FilePath -> Maybe FilePath -> IO Fetcher
+newFetcher locksDir pagesDir = do
   -- Extended Main Secret に対応していないサーバー（hands.net など）にもつなぐ。
   -- tls の既定は「必須」だが、ブラウザや curl と同じく「あれば使う」にする。証明書の検証は外さない。
   let supported = def {TLS.supportedExtendedMainSecret = TLS.AllowEMS}
@@ -68,7 +76,6 @@ data Fetched = Fetched
   , status :: Int
   , contentType :: Maybe Text
   , body :: ByteString
-  , cached :: Bool
   , fetchedAt :: UTCTime
   }
 
@@ -77,16 +84,16 @@ hostOf u = case T.splitOn "/" u of
   (_ : "" : h : _) -> h
   _ -> u
 
-minInterval, cacheTtl :: Num a => a
+-- | 同じホストへの取得の間隔（秒）
+minInterval :: Int
 minInterval = 2
-cacheTtl = 15 * 60
 
 -- | 取りに行くもの
 data Req = Req
   { url :: Text
   , -- | 読み取り専用の POST（カタログに載せたものだけ）。フォームの中身
     form :: Maybe [(Text, Text)]
-  , -- | 配送先などを含む。キャッシュにも、実行のページにも残さない
+  , -- | 配送先などを含む。実行の記録のページに残さない
     private :: Bool
   }
 
@@ -100,41 +107,47 @@ fetchReq f r
 
 fetchPublic :: Fetcher -> Req -> IO (Either Text Fetched)
 fetchPublic f req = do
-  let u = req.url
-      -- キャッシュのキー：URL と、POST ならフォームの中身
-      key = u <> maybe "" (\kvs -> "\n" <> T.intercalate "&" [k <> "=" <> v | (k, v) <- kvs]) req.form
-  now <- getCurrentTime
-  hit <- if f.fresh || req.private then pure Nothing else readCache f.cacheDir cacheTtl now key
-  case hit of
-    Just (e, body) -> pure (Right (Fetched u e.status e.contentType body True e.at))
-    Nothing -> do
-      lock <- modifyMVar f.hosts $ \m -> case Map.lookup (hostOf u) m of
-        Just l -> pure (m, l)
-        Nothing -> do
-          l <- newMVar (addUTCTime (-minInterval) now)
-          pure (Map.insert (hostOf u) l m, l)
-      -- ホストごとに1本ずつ。全体の枠は、順番が来てから取る
-      r <- modifyMVar lock $ \lastAt -> do
-        r <- bracket_ (waitQSem f.slots) (signalQSem f.slots) (paced lastAt (request f req))
-        done <- getCurrentTime
-        pure (done, r)
-      unless req.private $ for_ r $ \p -> do
-        when (p.status `elem` [200, 404]) $ writeCache f.cacheDir (CacheEntry key p.status p.contentType p.fetchedAt) p.body
-        for_ f.pagesDir $ \d -> do
-          createDirectoryIfMissing True d
-          BS.writeFile (d </> cacheKey key <> ".html") p.body
-      pure r
+  -- 全体の枠は、ホストの順番が来てから取る
+  r <- takeTurn f (hostOf req.url) (once503 (bracket_ (waitQSem f.slots) (signalQSem f.slots) (request f req)))
+  unless req.private $ for_ r $ \p -> for_ f.pagesDir $ \d -> do
+    createDirectoryIfMissing True d
+    BS.writeFile (d </> pageName req <> ".html") p.body
+  pure r
 
--- | 前の取得から2秒空ける。503 は一度だけ5秒待って取り直す（楽天は続けて検索すると503が出る）。
-paced :: UTCTime -> IO (Either Text Fetched) -> IO (Either Text Fetched)
-paced lastAt act = do
-  now <- getCurrentTime
-  let wait = minInterval - realToFrac (diffUTCTime now lastAt) :: Double
-  when (wait > 0) $ threadDelay (ceiling (wait * 1000000))
+-- | 同じホストへは、ほかの meguri のプロセスとあわせて同時に1本、前の取得が終わってから2秒以上空ける。
+--
+-- プロセスの中ではホストごとの 'MVar' で、プロセスの間ではホストごとのロックファイル（flock）で順番を待つ。
+-- 取り終わってから2秒たつまでロックを放さないので、前の取得の時刻をどこにも書かずに済む。
+-- プロセスが途中で終わっても、ロックは OS が外す。
+takeTurn :: Fetcher -> Text -> IO a -> IO a
+takeTurn f host act = do
+  local <- modifyMVar f.hosts $ \m -> case Map.lookup host m of
+    Just l -> pure (m, l)
+    Nothing -> do
+      l <- newMVar ()
+      pure (Map.insert host l m, l)
+  withMVar local $ \() -> do
+    createDirectoryIfMissing True f.locksDir
+    bracket
+      (lockFile (f.locksDir </> lockName host) Exclusive)
+      (\l -> threadDelay (minInterval * 1000000) `finally` unlockFile l)
+      (const act)
+
+-- | ロックファイルの名前。ホスト名の英数字・点・ハイフンだけを使う
+lockName :: Text -> FilePath
+lockName = toS . T.map (\c -> if isAscii c && (isAlphaNum c || c == '.' || c == '-') then c else '_') . T.toLower
+
+-- | 503 は一度だけ、5秒待って取り直す（楽天は、続けて検索すると503が出る）
+once503 :: IO (Either Text Fetched) -> IO (Either Text Fetched)
+once503 act = do
   r <- act
   case r of
     Right p | p.status == 503 -> threadDelay 5000000 >> act
     _ -> pure r
+
+-- | 実行の記録に置くページの名前：URL（POST ならフォームの中身も）の SHA-256
+pageName :: Req -> FilePath
+pageName r = toS . TE.decodeLatin1 . B16.encode . SHA256.hash . encodeUtf8 $ r.url <> maybe "" (\kvs -> "\n" <> T.intercalate "&" [k <> "=" <> v | (k, v) <- kvs]) r.form
 
 request :: Fetcher -> Req -> IO (Either Text Fetched)
 request f r = case parseRequest (toS r.url) of
@@ -165,7 +178,6 @@ request f r = case parseRequest (toS r.url) of
             , status = statusCode (responseStatus resp)
             , contentType = TE.decodeLatin1 <$> lookup "Content-Type" (responseHeaders resp)
             , body = BL.toStrict (responseBody resp)
-            , cached = False
             , fetchedAt = now
             }
  where

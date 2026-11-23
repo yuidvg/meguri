@@ -1,6 +1,6 @@
 -- | ship：送料を計算できるサイトで、配送先までの送料を出す。
 --
--- 配送先（MEGURI_PREF）は、キャッシュにも実行のページにも残さない。
+-- 配送先（MEGURI_PREF）は、実行の記録に残さない。
 module Meguri.Ship
   ( Pref (..)
   , parsePref
