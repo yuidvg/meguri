@@ -210,7 +210,7 @@
 ### cado公式（HTTP可）
 
 - id：`cado`　扱う種類：新品　確かめた日：2026-11-20
-- 診断（2026-11-21）：検索：取得8件／個別：確認済み
+- 診断（2026-11-24）：検索：ブロック（HTTP 429・Server cloudflare・Retry-After 60）／個別：見本なし　**要確認**
 - 検索：`https://cado.com/search?q={q}`
 - 個別ページのURLの形：`^https://cado\.com/products/`
 - ＊在庫は、本文の「売り切れ」の文字ではなく JSON-LD の offers.availability で判断する（在庫ありの商品にも、その文字が埋め込まれている）。
@@ -418,7 +418,7 @@
 ### Francfranc（個別ページだけHTTP可）
 
 - id：`francfranc`　扱う種類：新品　確かめた日：2026-11-20
-- 診断（2026-11-21）：検索：HTTP 200・商品リンク57／個別：確認済み
+- 診断（2026-11-24）：検索：ブロック（HTTP 429・Server cloudflare・Retry-After 60）／個別：見本なし　**要確認**
 - 検索：`https://francfranc.com/search?q={q}`
 - 個別ページのURLの形：`^https://francfranc\.com/products/`
 - ＊Shopify。個別ページの JSON-LD に、価格・在庫・画像がある（width=2000 で大きい）。安い順の指定は効かなかった。
@@ -436,7 +436,7 @@
 ### unico（個別ページだけHTTP可）
 
 - id：`unico`　扱う種類：新品　確かめた日：2026-11-20
-- 診断（2026-11-21）：検索：HTTP 200・商品リンク18／個別：一部（足りない：送料・販売者・購入の入口）・汎用の抽出
+- 診断（2026-11-24）：検索：ブロック（HTTP 429・Server cloudflare・Retry-After 60）／個別：見本なし　**要確認**
 - 検索：`https://www.unico-fan.co.jp/search?q={q}&sort_by=price-ascending`
 - 個別ページのURLの形：`^https://www\.unico-fan\.co\.jp/products/`
 - ＊ページが4〜5MBと重い。送料は注文画面まで出ない。予約販売の商品は「在庫あり」でも、発送日が決まっていないことがある。
@@ -693,7 +693,7 @@
 ### 買取王国（HTTP可）
 
 - id：`okoku`　扱う種類：中古　確かめた日：2026-11-20
-- 診断（2026-11-21）：検索：取得24件／個別：一部（足りない：送料）
+- 診断（2026-11-24）：検索：ブロック（HTTP 429・Server cloudflare・Retry-After 60）／個別：見本なし　**要確認**
 - 検索（中古）：`https://www.okoku.jp/search?q={q}&sort_by=price-ascending&filter.v.availability=1`
 - 個別ページのURLの形：`^https://(www\.)?okoku\.jp/products/`
 - ＊Shopify。個別ページの JSON-LD に、価格・在庫がある。
@@ -702,7 +702,7 @@
 ### ワンダーレックス（HTTP可）
 
 - id：`wonderrex`　扱う種類：中古　確かめた日：2026-11-20
-- 診断（2026-11-21）：検索：HTTP 200・商品リンク24／個別：一部（足りない：送料・販売者・購入の入口）・汎用の抽出
+- 診断（2026-11-24）：検索：ブロック（HTTP 429・Server cloudflare・Retry-After 60）／個別：見本なし　**要確認**
 - 検索（中古）：`https://wonderrex-online.com/search?q={q}&sort_by=price-ascending`
 - 個別ページのURLの形：`^https://wonderrex-online\.com/products/`
 - ＊wonderrex.jp は会社のサイト。送料表は /policies/shipping-policy にある。売り切れの商品も混ざる。
